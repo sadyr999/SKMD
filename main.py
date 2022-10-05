@@ -144,10 +144,51 @@ def updateCallsBase(file:str) -> str:
     return rangeReturn
 
 def smsReportImport(smsReport:str):
-    path = smsReport
-    bookBase = openpyxl.load_workbook(path)
+    bookBase = openpyxl.load_workbook(pathBase)
     sheetBase = bookBase.active
+    bookSMS = openpyxl.load_workbook(smsReport)
+    sheetSMS = bookSMS.active
 
+    sheetSMS.delete_cols(9)
+    sheetSMS.delete_cols(8)
+    sheetSMS.delete_cols(7)
+    sheetSMS.delete_cols(6)
+    sheetSMS.delete_cols(5)
+    sheetSMS.delete_cols(4)
+    sheetSMS.delete_cols(2)
+
+    sheetSMS['C1'].value = "Застрахованный"
+    sheetSMS['D1'].value = "Полис"
+    sheetSMS['E1'].value = "Дата выдачи"
+    sheetSMS['F1'].value = "Офис"
+    sheetSMS['G1'].value = "Агент"
+
+    maxRowSMS = sheetSMS.max_row
+    maxRowBase = sheetBase.max_row
+
+    counterA = 2
+    while counterA <= maxRowSMS:
+        phoneCell = sheetSMS.cell(row=counterA, column=2).value
+        counterB = counterA + 1
+        while counterB <= maxRowSMS:
+            if phoneCell == sheetSMS.cell(row=counterB, column=2).value:
+                sheetSMS.delete_rows(counterB)
+                maxRowSMS -= 1
+                counterB -= 1
+            counterB += 1
+        counterC = 1
+        while counterC <= maxRowBase:
+            if phoneCell == sheetBase.cell(row=counterC, column=13).value:
+                sheetSMS.cell(row=counterA, column=3).value = sheetBase.cell(row=counterC, column=3).value
+                sheetSMS.cell(row=counterA, column=4).value = sheetBase.cell(row=counterC, column=4).value
+                sheetSMS.cell(row=counterA, column=5).value = sheetBase.cell(row=counterC, column=5).value
+                sheetSMS.cell(row=counterA, column=6).value = sheetBase.cell(row=counterC, column=2).value
+                sheetSMS.cell(row=counterA, column=7).value = sheetBase.cell(row=counterC, column=1).value
+                break
+            counterC += 1
+        counterA += 1
+    bookSMS.save(smsReport)
+    print(f"SMS Report - {smsReport} - Processed")
 
 #----------------M---A---I---N----------------
 
@@ -187,7 +228,15 @@ while True:
             print("File {0} Processed and Moved to \n  > > > > >  {1}".format(source_path, new_location))
 
     elif x == "22":
-        pass
+        for file in glob.glob("Отчет за период*.xlsx"):
+            if file in open(pathLog).read():
+                pass
+            else:
+                with open(pathLog, "a+") as f:
+                    f.write(f"{file}\n")
+                    smsReportImport(file)
+                    f.close()
+        #OfficeReport()
 
     elif x == "00":
         break
