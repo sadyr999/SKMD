@@ -68,6 +68,7 @@ def createContacts():
             sheetContact.cell(row=counterContact, column=21).value = sheetBase.cell(row=firstEmpty, column=14).value
             sheetPrint.cell(row=counterContact, column=1).value = sheetBase.cell(row=firstEmpty, column=16).value
             sheetPrint.cell(row=counterContact, column=2).value = sheetBase.cell(row=firstEmpty, column=14).value
+            sheetPrint.cell(row=counterContact, column=3).value = sheetBase.cell(row=firstEmpty, column=2).value
             firstEmpty += 1
             counterContact += 1
         bookBase.save(pathBase)
@@ -75,7 +76,7 @@ def createContacts():
         bookContact.save(nameContact+".xlsx")
         bookPrint.save("ZZ Print "+nameContact+".xlsx")
         pandasRead = pandas.read_excel(nameContact+".xlsx")
-        pandasRead.to_csv(nameContact+".csv", index=None, header=True)
+        pandasRead.to_csv(nameContact+".csv", index=None, header=True, encoding='utf-8')
         os.remove(nameContact+".xlsx")
         print(f"Contacts/Print File - {nameContact}.csv - Created")
 
@@ -166,16 +167,17 @@ def smsReportImport(smsReport:str):
     maxRowSMS = sheetSMS.max_row
     maxRowBase = sheetBase.max_row
 
-    counterA = 2
-    while counterA <= maxRowSMS:
+    print("Processing SMS Report ", end="")
+    display = 0
+    counterA = maxRowSMS
+    while counterA > 1:
         phoneCell = sheetSMS.cell(row=counterA, column=2).value
-        counterB = counterA + 1
-        while counterB <= maxRowSMS:
+        counterB = counterA - 1
+        while counterB > 0:
             if phoneCell == sheetSMS.cell(row=counterB, column=2).value:
                 sheetSMS.delete_rows(counterB)
-                maxRowSMS -= 1
-                counterB -= 1
-            counterB += 1
+                counterA -= 1
+            counterB -= 1
         counterC = 1
         while counterC <= maxRowBase:
             if phoneCell == sheetBase.cell(row=counterC, column=13).value:
@@ -186,9 +188,91 @@ def smsReportImport(smsReport:str):
                 sheetSMS.cell(row=counterA, column=7).value = sheetBase.cell(row=counterC, column=1).value
                 break
             counterC += 1
-        counterA += 1
+            if counterC > maxRowBase:
+                sheetSMS.delete_rows(counterA)
+        counterA -= 1
+        if (maxRowSMS-counterA) / maxRowSMS * 100 > display:
+            print(">" + str(display) + "%", end="")
+            display += 10
+
     bookSMS.save(smsReport)
+    print("")
     print(f"SMS Report - {smsReport} - Processed")
+
+    bookReport = openpyxl.load_workbook("TemplateReport.xlsx")
+    sheetReport = bookReport.active
+
+    maxRowSMS = sheetSMS.max_row
+    maxRowBase = sheetBase.max_row
+    maxRowReport = sheetReport.max_row
+    currMonth = datetime.datetime.now().month
+    dateStart = sheetSMS.cell(row=maxRowSMS, column=1).value
+    dateEnd = sheetSMS.cell(row=2, column=1).value
+    counterD = 4
+    sheetReport.cell(row=1, column=1).value = "Отчет по регистрациям в приложении за период с " + str(dateStart) + " по " + str (dateEnd)
+
+    while counterD < maxRowReport:
+        quantityTotal = 0
+        quantityRegis = 0
+        quantityTotalThisM = 0
+        quantityRegisThisM = 0
+        quantityTotalLastM = 0
+        quantityRegisLastM = 0
+        quantityTotalPrevM = 0
+        quantityRegisPrevM = 0
+        counterE = 2
+        counterF = 2
+        officeName = sheetReport.cell(row=counterD, column=1).value
+        while counterE <= maxRowBase:
+            if officeName == sheetBase.cell(row=counterE, column=2).value:
+                quantityTotal += 1
+                if str(currMonth) in str(sheetBase.cell(row=counterE, column=5).value)[5:7]:
+                    quantityTotalThisM += 1
+                elif str(currMonth-1) in str(sheetBase.cell(row=counterE, column=5).value)[5:7]:
+                    quantityTotalLastM += 1
+                elif str(currMonth-2) in str(sheetBase.cell(row=counterE, column=5).value)[5:7]:
+                    quantityTotalPrevM += 1
+            counterE += 1
+        while counterF <= maxRowSMS:
+            if officeName == sheetSMS.cell(row=counterF, column=6).value:
+                quantityRegis += 1
+                if str(currMonth) in str(sheetSMS.cell(row=counterF, column=1).value)[3:5]:
+                    quantityRegisThisM += 1
+                elif str(currMonth-1) in str(sheetSMS.cell(row=counterF, column=1).value)[3:5]:
+                    quantityRegisLastM += 1
+                elif str(currMonth-2) in str(sheetSMS.cell(row=counterF, column=1).value)[3:5]:
+                    quantityRegisPrevM += 1
+            counterF += 1
+        sheetReport.cell(row=counterD, column=2).value = quantityTotal
+        sheetReport.cell(row=counterD, column=3).value = quantityRegis
+        sheetReport.cell(row=counterD, column=5).value = quantityTotalThisM
+        sheetReport.cell(row=counterD, column=6).value = quantityRegisThisM
+        sheetReport.cell(row=counterD, column=8).value = quantityTotalLastM
+        sheetReport.cell(row=counterD, column=9).value = quantityRegisLastM
+        sheetReport.cell(row=counterD, column=11).value = quantityTotalPrevM
+        sheetReport.cell(row=counterD, column=12).value = quantityRegisPrevM
+        if quantityTotal != 0:
+            sheetReport.cell(row=counterD, column=4).value = str(quantityRegis/quantityTotal*100)[:3] + "%"
+        else:
+            sheetReport.cell(row=counterD, column=4).value = "NA"
+        if quantityTotalThisM != 0:
+            sheetReport.cell(row=counterD, column=7).value = str(quantityRegisThisM/quantityTotalThisM*100)[:3] + "%"
+        else:
+            sheetReport.cell(row=counterD, column=7).value = "NA"
+        if quantityTotalLastM != 0:
+            sheetReport.cell(row=counterD, column=10).value = str(quantityRegisLastM/quantityTotalLastM*100)[:3] + "%"
+        else:
+            sheetReport.cell(row=counterD, column=10).value = "NA"
+        if quantityTotalPrevM != 0:
+            sheetReport.cell(row=counterD, column=13).value = str(quantityRegisPrevM/quantityTotalPrevM*100)[:3] + "%"
+        else:
+            sheetReport.cell(row=counterD, column=13).value = "NA"
+        counterD += 1
+
+    bookReport.save("REP" + smsReport +".xlsx")
+
+
+
 
 #----------------M---A---I---N----------------
 
@@ -236,7 +320,6 @@ while True:
                     f.write(f"{file}\n")
                     smsReportImport(file)
                     f.close()
-        #OfficeReport()
 
     elif x == "00":
         break
