@@ -43,6 +43,9 @@ def dailyImport(insReport:str):
 
     bookBase.save(pathBase)
     bookIns.save(f"XX 00-00 {pathIns}")
+    with open(pathLog, "a+") as f:
+        f.write(f"XX 00-00 {pathIns}")
+        f.close()
     print(f"MD Import File - {pathIns} - Processed")
 
 def createContacts():
@@ -199,6 +202,21 @@ def smsReportImport(smsReport:str):
     print("")
     print(f"SMS Report - {smsReport} - Processed")
 
+    d1 = str(input("Day 1 of the week: / mm-dd "))
+    d2 = str(input("Day 2 of the week: / mm-dd "))
+    d3 = str(input("Day 3 of the week: / mm-dd "))
+    d4 = str(input("Day 4 of the week: / mm-dd "))
+    d5 = str(input("Day 5 of the week: / mm-dd "))
+    d6 = str(input("Day 6 of the week: / mm-dd "))
+    d7 = str(input("Day 7 of the week: / mm-dd "))
+    s1 = d1[3] + d1[4] + "." + d1[0] + d1[1]
+    s2 = d2[3] + d2[4] + "." + d2[0] + d2[1]
+    s3 = d3[3] + d3[4] + "." + d3[0] + d3[1]
+    s4 = d4[3] + d4[4] + "." + d4[0] + d4[1]
+    s5 = d5[3] + d5[4] + "." + d5[0] + d5[1]
+    s6 = d6[3] + d6[4] + "." + d6[0] + d6[1]
+    s7 = d7[3] + d7[4] + "." + d7[0] + d7[1]
+
     bookReport = openpyxl.load_workbook("TemplateReport.xlsx")
     sheetReport = bookReport.active
 
@@ -209,67 +227,46 @@ def smsReportImport(smsReport:str):
     dateStart = sheetSMS.cell(row=maxRowSMS, column=1).value
     dateEnd = sheetSMS.cell(row=2, column=1).value
     counterD = 4
-    sheetReport.cell(row=1, column=1).value = "Отчет по регистрациям в приложении за период с " + str(dateStart) + " по " + str (dateEnd)
+    sheetReport.cell(row=1, column=6).value = "по " + str(dateEnd)[:9]
 
     while counterD < maxRowReport:
         quantityTotal = 0
         quantityRegis = 0
         quantityTotalThisM = 0
         quantityRegisThisM = 0
-        quantityTotalLastM = 0
-        quantityRegisLastM = 0
-        quantityTotalPrevM = 0
-        quantityRegisPrevM = 0
+        quantityTotalLastW = 0
+        quantityRegisLastW = 0
         counterE = 2
         counterF = 2
-        officeName = sheetReport.cell(row=counterD, column=1).value
+        officeName = sheetReport.cell(row=counterD, column=2).value
         while counterE <= maxRowBase:
             if officeName == sheetBase.cell(row=counterE, column=2).value:
                 quantityTotal += 1
                 if str(currMonth) in str(sheetBase.cell(row=counterE, column=5).value)[5:7]:
                     quantityTotalThisM += 1
-                elif str(currMonth-1) in str(sheetBase.cell(row=counterE, column=5).value)[5:7]:
-                    quantityTotalLastM += 1
-                elif str(currMonth-2) in str(sheetBase.cell(row=counterE, column=5).value)[5:7]:
-                    quantityTotalPrevM += 1
+                dayAndMonth = str(sheetBase.cell(row=counterE, column=5).value)[-5:]
+                if d1 in dayAndMonth or d2 in dayAndMonth or d3 in dayAndMonth or d4 in dayAndMonth or d5 in dayAndMonth or d6 in dayAndMonth or d7 in dayAndMonth:
+                    quantityTotalLastW += 1
             counterE += 1
         while counterF <= maxRowSMS:
             if officeName == sheetSMS.cell(row=counterF, column=6).value:
                 quantityRegis += 1
                 if str(currMonth) in str(sheetSMS.cell(row=counterF, column=1).value)[3:5]:
                     quantityRegisThisM += 1
-                elif str(currMonth-1) in str(sheetSMS.cell(row=counterF, column=1).value)[3:5]:
-                    quantityRegisLastM += 1
-                elif str(currMonth-2) in str(sheetSMS.cell(row=counterF, column=1).value)[3:5]:
-                    quantityRegisPrevM += 1
+                dayAndMonth = str(sheetSMS.cell(row=counterF, column=1).value)[:5]
+                if s1 in dayAndMonth or s2 in dayAndMonth or s3 in dayAndMonth or s4 in dayAndMonth or s5 in dayAndMonth or s6 in dayAndMonth or s7 in dayAndMonth:
+                    quantityRegisLastW += 1
             counterF += 1
-        sheetReport.cell(row=counterD, column=2).value = quantityTotal
-        sheetReport.cell(row=counterD, column=3).value = quantityRegis
-        sheetReport.cell(row=counterD, column=5).value = quantityTotalThisM
-        sheetReport.cell(row=counterD, column=6).value = quantityRegisThisM
-        sheetReport.cell(row=counterD, column=8).value = quantityTotalLastM
-        sheetReport.cell(row=counterD, column=9).value = quantityRegisLastM
-        sheetReport.cell(row=counterD, column=11).value = quantityTotalPrevM
-        sheetReport.cell(row=counterD, column=12).value = quantityRegisPrevM
-        if quantityTotal != 0:
-            sheetReport.cell(row=counterD, column=4).value = str(quantityRegis/quantityTotal*100)[:3] + "%"
-        else:
-            sheetReport.cell(row=counterD, column=4).value = "NA"
-        if quantityTotalThisM != 0:
-            sheetReport.cell(row=counterD, column=7).value = str(quantityRegisThisM/quantityTotalThisM*100)[:3] + "%"
-        else:
-            sheetReport.cell(row=counterD, column=7).value = "NA"
-        if quantityTotalLastM != 0:
-            sheetReport.cell(row=counterD, column=10).value = str(quantityRegisLastM/quantityTotalLastM*100)[:3] + "%"
-        else:
-            sheetReport.cell(row=counterD, column=10).value = "NA"
-        if quantityTotalPrevM != 0:
-            sheetReport.cell(row=counterD, column=13).value = str(quantityRegisPrevM/quantityTotalPrevM*100)[:3] + "%"
-        else:
-            sheetReport.cell(row=counterD, column=13).value = "NA"
+        sheetReport.cell(row=counterD, column=3).value = quantityTotal
+        sheetReport.cell(row=counterD, column=4).value = quantityRegis
+        sheetReport.cell(row=counterD, column=12).value = quantityTotalThisM
+        sheetReport.cell(row=counterD, column=13).value = quantityRegisThisM
+        sheetReport.cell(row=counterD, column=6).value = quantityTotalLastW
+        sheetReport.cell(row=counterD, column=7).value = quantityRegisLastW
+        sheetReport.cell(row=2, column=6).value = "неделя " + d1 + " по " + d7
         counterD += 1
 
-    bookReport.save("REP" + smsReport +".xlsx")
+    bookReport.save("Отчет по регистрациям в Мой Доктор на " + currStamp + ".xlsx")
 
 
 
@@ -293,7 +290,7 @@ while True:
 
     if x == "11":
         backupBase()
-        for file in glob.glob("Страх*.xlsx"):
+        for file in glob.glob("*Страх*.xlsx"):
             if file in open(pathLog).read():
                 pass
             else:
@@ -318,8 +315,8 @@ while True:
             else:
                 with open(pathLog, "a+") as f:
                     f.write(f"{file}\n")
-                    smsReportImport(file)
                     f.close()
+                    smsReportImport(file)
 
     elif x == "00":
         break
