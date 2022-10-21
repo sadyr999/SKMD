@@ -44,7 +44,7 @@ def dailyImport(insReport:str):
     bookBase.save(pathBase)
     bookIns.save(f"XX 00-00 {pathIns}")
     with open(pathLog, "a+") as f:
-        f.write(f"XX 00-00 {pathIns}")
+        f.write(f"XX 00-00 {pathIns}\n")
         f.close()
     print(f"MD Import File - {pathIns} - Processed")
 
@@ -198,17 +198,17 @@ def smsReportImport(smsReport:str):
             print(">" + str(display) + "%", end="")
             display += 10
 
-    bookSMS.save(smsReport)
+    bookSMS.save(f"PRCD-{smsReport}")
     print("")
     print(f"SMS Report - {smsReport} - Processed")
 
-    d1 = str(input("Day 1 of the week: / mm-dd "))
-    d2 = str(input("Day 2 of the week: / mm-dd "))
-    d3 = str(input("Day 3 of the week: / mm-dd "))
-    d4 = str(input("Day 4 of the week: / mm-dd "))
-    d5 = str(input("Day 5 of the week: / mm-dd "))
-    d6 = str(input("Day 6 of the week: / mm-dd "))
-    d7 = str(input("Day 7 of the week: / mm-dd "))
+    d1 = str(input("Day 1 of the week / mm-dd : "))
+    d2 = str(input("Day 2 of the week / mm-dd : "))
+    d3 = str(input("Day 3 of the week / mm-dd : "))
+    d4 = str(input("Day 4 of the week / mm-dd : "))
+    d5 = str(input("Day 5 of the week / mm-dd : "))
+    d6 = str(input("Day 6 of the week / mm-dd : "))
+    d7 = str(input("Day 7 of the week / mm-dd : "))
     s1 = d1[3] + d1[4] + "." + d1[0] + d1[1]
     s2 = d2[3] + d2[4] + "." + d2[0] + d2[1]
     s3 = d3[3] + d3[4] + "." + d3[0] + d3[1]
@@ -268,8 +268,55 @@ def smsReportImport(smsReport:str):
 
     bookReport.save("Отчет по регистрациям в Мой Доктор на " + currStamp + ".xlsx")
 
+def transformDocList(docList:str):
+    bookList = openpyxl.load_workbook(docList)
+    sheetList = bookList.active
+    bookNew = openpyxl.load_workbook("TemplateDocs.xlsx")
+    sheetNew = bookNew.active
+
+    maxRowList = sheetList.max_row
+    counterA = 6
+    counterNew = 1
+    while counterA <= maxRowList:
+
+        counterB = counterA - 1
+        while counterB > 0:
+            if (sheetList.cell(row=counterA, column=1).value == sheetNew.cell(row=counterB, column=1).value and
+                    sheetList.cell(row=counterA, column=3).value == sheetNew.cell(row=counterB, column=2).value and
+                    sheetList.cell(row=counterA, column=7).value == sheetNew.cell(row=counterB, column=4).value):
+                counterA += 1
+                counterB = counterA - 1
+            counterB -= 1
+
+        counterColumn = 1
+        for i in [1, 3, 6, 7]:
+            sheetNew.cell(row=counterNew, column=counterColumn).value = sheetList.cell(row=counterA, column=i).value
+            counterColumn += 1
+        insCase = str(sheetNew.cell(row=counterNew, column=4).value)
+        sheetNew.cell(row=counterNew, column=5).value = "заявление"
+        sheetNew.cell(row=counterNew, column=6).value = "ожидаем"
+
+        if "смерть" in insCase:
+            counterNew += 1
+            for i in [1, 2, 3, 4, 6]:
+                sheetNew.cell(row=counterNew, column=i).value = sheetNew.cell(row=counterNew-1, column=i).value
+            sheetNew.cell(row=counterNew, column=5).value = "свидетельство о смерти нот.зав.копия"
+        elif "инвалидность" in insCase:
+            counterNew += 1
+            for i in [1, 2, 3, 4, 6]:
+                sheetNew.cell(row=counterNew, column=i).value = sheetNew.cell(row=counterNew-1, column=i).value
+            sheetNew.cell(row=counterNew, column=5).value = "нот.зав.копия МСЭК"
+        elif "критическое" in insCase:
+            for i in [1, 2, 3, 4, 6]:
+                sheetNew.cell(row=counterNew, column=i).value = sheetNew.cell(row=counterNew-1, column=i).value
+            sheetNew.cell(row=counterNew, column=5).value = "эпикриз оригинал"
+        counterNew += 1
+        counterA += 1
 
 
+    bookNew.save(f"БФоригиналы-{str(sheetNew.cell(row=1, column=1).value)[:5]}-{str(sheetNew.cell(row=counterNew-1, column=1).value)[:5]}.xlsx")
+    print(sheetNew.max_row)
+    print(f"SMS Report - {docList} - Processed")
 
 #----------------M---A---I---N----------------
 
@@ -286,25 +333,34 @@ with open(pathLog, "a+") as f:
     f.close();
 
 while True:
-    x = input("11 for ОБРАБОТКА СПИСКОВ ЗАСТРАХОВАННЫХ \n22 for ИМПОРТ СМС ОТЧЕТОВ \n33 for ИМПОРТ СПИСКА ПРИЕМОВ \n00 for ВЫХОД \nIN: ")
+    x = input("11 for ОБРАБОТКА СПИСКОВ ЗАСТРАХОВАННЫХ \n22 for ИМПОРТ СМС ОТЧЕТОВ \n"
+              "33 for ИМПОРТ СПИСКА ПРИЕМОВ \n44 for СПИСОК ДОКОВ СК \n00 for ВЫХОД \nIN: ")
 
     if x == "11":
         backupBase()
-        for file in glob.glob("*Страх*.xlsx"):
+        for file in glob.glob("Страх*.xlsx"):
             if file in open(pathLog).read():
                 pass
             else:
                 with open(pathLog, "a+") as f:
                     f.write(f"{file}\n")
-                    dailyImport(file)
                     f.close()
+                    dailyImport(file)
+        for file in glob.glob("E-Strah*.xlsx"):
+            if file in open(pathLog).read():
+                pass
+            else:
+                with open(pathLog, "a+") as f:
+                    f.write(f"{file}\n")
+                    f.close()
+                    dailyImport(file)
         createContacts()
 
     elif x == "33":
         for file in glob.glob("rece*.xlsx"):
             dateRange = updateCallsBase(file)
             source_path = file
-            destination_path = "arhvRecep/recep"+ dateRange + ".xlsx"
+            destination_path = "arhvRecep/recep" + dateRange + ".xlsx"
             new_location = shutil.move(source_path, destination_path)
             print("File {0} Processed and Moved to \n  > > > > >  {1}".format(source_path, new_location))
 
@@ -314,10 +370,18 @@ while True:
                 pass
             else:
                 with open(pathLog, "a+") as f:
-                    f.write(f"{file}\n")
+                    #f.write(f"{file}\n")
                     f.close()
                     smsReportImport(file)
-
+    elif x == "44":
+        for file in glob.glob("доки*.xlsx"):
+            if file in open(pathLog).read():
+                pass
+            else:
+                with open(pathLog, "a+") as f:
+                    f.write(f"{file}\n")
+                    f.close()
+                    transformDocList(file)
     elif x == "00":
         break
 
