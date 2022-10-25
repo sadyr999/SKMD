@@ -166,6 +166,7 @@ def smsReportImport(smsReport:str):
     sheetSMS['E1'].value = "Дата выдачи"
     sheetSMS['F1'].value = "Офис"
     sheetSMS['G1'].value = "Агент"
+    sheetSMS['H1'].value = "ИНН"
 
     maxRowSMS = sheetSMS.max_row
     maxRowBase = sheetBase.max_row
@@ -189,6 +190,7 @@ def smsReportImport(smsReport:str):
                 sheetSMS.cell(row=counterA, column=5).value = sheetBase.cell(row=counterC, column=5).value
                 sheetSMS.cell(row=counterA, column=6).value = sheetBase.cell(row=counterC, column=2).value
                 sheetSMS.cell(row=counterA, column=7).value = sheetBase.cell(row=counterC, column=1).value
+                sheetSMS.cell(row=counterA, column=8).value = sheetBase.cell(row=counterC, column=12).value
                 break
             counterC += 1
             if counterC > maxRowBase:
@@ -222,14 +224,25 @@ def smsReportImport(smsReport:str):
 
     maxRowSMS = sheetSMS.max_row
     maxRowBase = sheetBase.max_row
-    maxRowReport = sheetReport.max_row
+    maxRowReport = sheetReport.max_row - 2
     currMonth = datetime.datetime.now().month
     dateStart = sheetSMS.cell(row=maxRowSMS, column=1).value
     dateEnd = sheetSMS.cell(row=2, column=1).value
     counterD = 4
     sheetReport.cell(row=1, column=6).value = "по " + str(dateEnd)[:9]
-
+    femaleWeekReg = 0
+    maleWeekReg = 0
+    femaleMonthReg = 0
+    maleMonthReg = 0
+    femaleWeekIns = 0
+    maleWeekIns = 0
+    femaleMonthIns = 0
+    maleMonthIns = 0
     while counterD < maxRowReport:
+        femaleTotalReg = 0
+        maleTotalReg = 0
+        femaleTotalIns = 0
+        maleTotalIns = 0
         quantityTotal = 0
         quantityRegis = 0
         quantityTotalThisM = 0
@@ -240,22 +253,46 @@ def smsReportImport(smsReport:str):
         counterF = 2
         officeName = sheetReport.cell(row=counterD, column=2).value
         while counterE <= maxRowBase:
+            if str(sheetBase.cell(row=counterE, column=12).value)[0] == "1":
+                femaleTotalIns += 1
+            else:
+                maleTotalIns += 1
             if officeName == sheetBase.cell(row=counterE, column=2).value:
                 quantityTotal += 1
                 if str(currMonth) in str(sheetBase.cell(row=counterE, column=5).value)[5:7]:
                     quantityTotalThisM += 1
+                    if str(sheetBase.cell(row=counterE, column=12).value)[0] == "1":
+                        femaleMonthIns += 1
+                    else:
+                        maleMonthIns += 1
                 dayAndMonth = str(sheetBase.cell(row=counterE, column=5).value)[-5:]
                 if d1 in dayAndMonth or d2 in dayAndMonth or d3 in dayAndMonth or d4 in dayAndMonth or d5 in dayAndMonth or d6 in dayAndMonth or d7 in dayAndMonth:
                     quantityTotalLastW += 1
+                    if str(sheetBase.cell(row=counterE, column=12).value)[0] == "1":
+                        femaleWeekIns += 1
+                    else:
+                        maleWeekIns += 1
             counterE += 1
         while counterF <= maxRowSMS:
+            if str(sheetSMS.cell(row=counterF, column=8).value)[0] == "1":
+                femaleTotalReg += 1
+            else:
+                maleTotalReg += 1
             if officeName == sheetSMS.cell(row=counterF, column=6).value:
                 quantityRegis += 1
                 if str(currMonth) in str(sheetSMS.cell(row=counterF, column=1).value)[3:5]:
                     quantityRegisThisM += 1
+                    if str(sheetSMS.cell(row=counterF, column=8).value)[0] == "1":
+                        femaleMonthReg += 1
+                    else:
+                        maleMonthReg += 1
                 dayAndMonth = str(sheetSMS.cell(row=counterF, column=1).value)[:5]
                 if s1 in dayAndMonth or s2 in dayAndMonth or s3 in dayAndMonth or s4 in dayAndMonth or s5 in dayAndMonth or s6 in dayAndMonth or s7 in dayAndMonth:
                     quantityRegisLastW += 1
+                    if str(sheetSMS.cell(row=counterF, column=8).value)[0] == "1":
+                        femaleWeekReg += 1
+                    else:
+                        maleWeekReg += 1
             counterF += 1
         sheetReport.cell(row=counterD, column=3).value = quantityTotal
         sheetReport.cell(row=counterD, column=4).value = quantityRegis
@@ -266,6 +303,18 @@ def smsReportImport(smsReport:str):
         sheetReport.cell(row=2, column=6).value = "неделя " + d1 + " по " + d7
         counterD += 1
 
+    sheetReport.cell(row=maxRowReport + 1, column=3).value = maleTotalIns
+    sheetReport.cell(row=maxRowReport + 2, column=3).value = femaleTotalIns
+    sheetReport.cell(row=maxRowReport + 1, column=4).value = maleTotalReg
+    sheetReport.cell(row=maxRowReport + 2, column=4).value = femaleTotalReg
+    sheetReport.cell(row=maxRowReport + 1, column=6).value = maleWeekIns
+    sheetReport.cell(row=maxRowReport + 2, column=6).value = femaleWeekIns
+    sheetReport.cell(row=maxRowReport + 1, column=7).value = maleWeekReg
+    sheetReport.cell(row=maxRowReport + 2, column=7).value = femaleWeekReg
+    sheetReport.cell(row=maxRowReport + 1, column=12).value = maleMonthIns
+    sheetReport.cell(row=maxRowReport + 2, column=12).value = femaleMonthIns
+    sheetReport.cell(row=maxRowReport + 1, column=13).value = maleMonthReg
+    sheetReport.cell(row=maxRowReport + 2, column=13).value = femaleMonthReg
     bookReport.save("Отчет по регистрациям в Мой Доктор на " + currStamp + ".xlsx")
 
 def transformDocList(docList:str):
