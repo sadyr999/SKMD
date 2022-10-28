@@ -43,9 +43,6 @@ def dailyImport(insReport:str):
 
     bookBase.save(pathBase)
     bookIns.save(f"XX 00-00 {pathIns}")
-    with open(pathLog, "a+") as f:
-        f.write(f"XX 00-00 {pathIns}\n")
-        f.close()
     print(f"MD Import File - {pathIns} - Processed")
 
 def createContacts():
@@ -238,11 +235,11 @@ def smsReportImport(smsReport:str):
     maleWeekIns = 0
     femaleMonthIns = 0
     maleMonthIns = 0
+    femaleTotalReg = 0
+    maleTotalReg = 0
+    femaleTotalIns = 0
+    maleTotalIns = 0
     while counterD < maxRowReport:
-        femaleTotalReg = 0
-        maleTotalReg = 0
-        femaleTotalIns = 0
-        maleTotalIns = 0
         quantityTotal = 0
         quantityRegis = 0
         quantityTotalThisM = 0
@@ -253,12 +250,12 @@ def smsReportImport(smsReport:str):
         counterF = 2
         officeName = sheetReport.cell(row=counterD, column=2).value
         while counterE <= maxRowBase:
-            if str(sheetBase.cell(row=counterE, column=12).value)[0] == "1":
-                femaleTotalIns += 1
-            else:
-                maleTotalIns += 1
             if officeName == sheetBase.cell(row=counterE, column=2).value:
                 quantityTotal += 1
+                if str(sheetBase.cell(row=counterE, column=12).value)[0] == "1":
+                    femaleTotalIns += 1
+                else:
+                    maleTotalIns += 1
                 if str(currMonth) in str(sheetBase.cell(row=counterE, column=5).value)[5:7]:
                     quantityTotalThisM += 1
                     if str(sheetBase.cell(row=counterE, column=12).value)[0] == "1":
@@ -274,12 +271,12 @@ def smsReportImport(smsReport:str):
                         maleWeekIns += 1
             counterE += 1
         while counterF <= maxRowSMS:
-            if str(sheetSMS.cell(row=counterF, column=8).value)[0] == "1":
-                femaleTotalReg += 1
-            else:
-                maleTotalReg += 1
             if officeName == sheetSMS.cell(row=counterF, column=6).value:
                 quantityRegis += 1
+                if str(sheetSMS.cell(row=counterF, column=8).value)[0] == "1":
+                    femaleTotalReg += 1
+                else:
+                    maleTotalReg += 1
                 if str(currMonth) in str(sheetSMS.cell(row=counterF, column=1).value)[3:5]:
                     quantityRegisThisM += 1
                     if str(sheetSMS.cell(row=counterF, column=8).value)[0] == "1":
