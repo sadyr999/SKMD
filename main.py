@@ -20,7 +20,7 @@ def dailyImport(insReport:str):
         while True:
             x = input(f"{insReport} --- 11-Dinara 22-Venera 33-Web: ")
             if x == "11":
-                if input(f"{sheetIns.cell(row=4,column=4).value} / {sheetIns.cell(row=4,column=13).value} press 00 if OK: ") == "00":
+                if input(f"{sheetIns.cell(row=4,column=4).value} / {sheetIns.cell(row=4,column=15).value} press 00 if OK: ") == "00":
                     break
             if x == "22":
                 if input(f"{sheetIns.cell(row=4,column=4).value} / {sheetIns.cell(row=4,column=14).value} press 00 if OK: ") == "00":
@@ -69,7 +69,7 @@ def dailyImport(insReport:str):
         counterA += 1
 
     bookBase.save(pathBase)
-    bookIns.save(f"XX 00-00 {pathIns}")
+    bookIns.save(f"1XX 00-00 {pathIns}")
     print(f"MD Import File - {pathIns} - Processed")
 
 def createContacts():
@@ -110,6 +110,7 @@ def createContacts():
 def updateCallsBase(file:str) -> str:
     shutil.copy(pathEmer, f"BKPemer{currStamp}.xlsx")
     shutil.copy(pathPlan, f"BKPplan{currStamp}.xlsx")
+    shutil.copy(pathAll, f"BKPall{currStamp}.xlsx")
 
     bookEmer = openpyxl.load_workbook(pathEmer)
     sheetEmer = bookEmer.active
@@ -117,22 +118,28 @@ def updateCallsBase(file:str) -> str:
     sheetPlan = bookPlan.active
     bookImport = openpyxl.load_workbook(file)
     sheetImport = bookImport.active
+    bookAll = openpyxl.load_workbook(pathAll)
+    sheetAll = bookAll.active
 
-    counterRow = 2
     display = 0
     lastRowEmer = sheetEmer.max_row + 1
     lastRowPlan = sheetPlan.max_row + 1
+    lastRowAll = sheetAll.max_row + 1
     lastRowImport = sheetImport.max_row
     print("Processing Receptions File ", end="")
     bookBase = openpyxl.load_workbook(pathBase)
     sheetBase = bookBase.active
-    while counterRow <= lastRowImport:
+    counterRow = lastRowImport
+    print("+base ", end="")
+    while counterRow > 1:
         maxRow = sheetBase.max_row
         policyNum = "НЕТ ПОЛИСА"
+        officeName = "НЕТ ПОЛИСА"
         nameIns = sheetImport.cell(row=counterRow, column=4).value
         while maxRow > 1:
             if sheetBase.cell(row=maxRow, column=3).value == nameIns:
                 policyNum = sheetBase.cell(row=maxRow, column=4).value
+                officeName = sheetBase.cell(row=maxRow, column=2).value
                 maxRow = 0
             maxRow -= 1
         if len(sheetImport.cell(row=counterRow, column=2).value) < 10:
@@ -148,7 +155,11 @@ def updateCallsBase(file:str) -> str:
                 sheetPlan.cell(row=lastRowPlan, column=5).value = "Специалист"
             sheetPlan.cell(row=lastRowPlan, column=6).value = policyNum
             sheetPlan.cell(row=lastRowPlan, column=7).value = currStamp
+            sheetPlan.cell(row=lastRowPlan, column=8).value = officeName
+            for i in range(1, 9):
+                sheetAll.cell(row=lastRowAll, column=i).value = sheetPlan.cell(row=lastRowPlan, column=i).value
             lastRowPlan += 1
+            lastRowAll += 1
         else:
             sheetEmer.cell(row=lastRowEmer, column=1).value = str(sheetImport.cell(row=counterRow, column=1).value)[:10]
             for i in range (2,5):
@@ -160,16 +171,69 @@ def updateCallsBase(file:str) -> str:
                 sheetEmer.cell(row=lastRowEmer, column=5).value = "Дежурный врач с назначением лечения"
             sheetEmer.cell(row=lastRowEmer, column=6).value = policyNum
             sheetEmer.cell(row=lastRowEmer, column=7).value = currStamp
+            sheetEmer.cell(row=lastRowEmer, column=8).value = officeName
+            for i in range(1, 9):
+                sheetAll.cell(row=lastRowAll, column=i).value = sheetEmer.cell(row=lastRowEmer, column=i).value
+            lastRowAll += 1
             lastRowEmer += 1
         if counterRow/lastRowImport*100 > display:
             print(">"+str(display)+"%", end="")
             display += 10
-        counterRow += 1
+        counterRow -= 1
     bookEmer.save(pathEmer)
     bookPlan.save(pathPlan)
+    bookAll.save(pathAll)
     print("")
     rangeReturn = str(sheetImport.cell(row=2, column=1).value)[:10] + "-" + str(sheetImport.cell(row=sheetImport.max_row, column=1).value)[:10]
     return rangeReturn
+
+def VerifyCallList():
+    bookAll = openpyxl.load_workbook(pathAll)
+    sheetAll = bookAll.active
+
+    counterRow = 2
+    display = 0
+
+    lastRowAll = sheetAll.max_row
+    print("Verifying POLICY CARDS", end="")
+    while counterRow <= lastRowAll:
+        policyNum = sheetAll.cell(row=counterRow, column=6).value
+        if policyNum == "НЕТ ПОЛИСА":
+            counterRow += 1
+            continue
+        counterPolicy = counterRow-1
+        policyNew = True
+        while counterPolicy > 2:
+            if policyNum == sheetAll.cell(row=counterPolicy, column=6).value:
+                sheetAll.cell(row=counterRow, column=9).value = "повторное"
+                sheetAll.cell(row=counterRow, column=10).value = sheetAll.cell(row=counterPolicy, column=10).value
+                if "Дежурный" in sheetAll.cell(row=counterRow, column=5).value:
+                    sheetAll.cell(row=counterRow, column=11).value = "дежурный"
+                    sheetAll.cell(row=counterRow, column=12).value = sheetAll.cell(row=counterPolicy, column=12).value
+                else:
+                    sheetAll.cell(row=counterRow, column=11).value = "плановый"
+                    cellInqNum = int(sheetAll.cell(row=counterPolicy, column=12).value) + 1
+                    sheetAll.cell(row=counterRow, column=12).value = cellInqNum
+                policyNew = False
+                break
+            counterPolicy -= 1
+        if policyNew:
+            if "Дежурный" in sheetAll.cell(row=counterRow, column=5).value:
+                sheetAll.cell(row=counterRow, column=11).value = "дежурный"
+                sheetAll.cell(row=counterRow, column=12).value = 0
+            else:
+                sheetAll.cell(row=counterRow, column=11).value = "плановый"
+                sheetAll.cell(row=counterRow, column=12).value = 1
+            sheetAll.cell(row=counterRow, column=9).value = "открытие файла"
+            sheetAll.cell(row=counterRow, column=10).value = policyNum + " от " + sheetAll.cell(row=counterRow, column=1).value
+
+        if counterRow/lastRowAll*100 > display:
+            print(">"+str(display)+"%", end="")
+            display += 10
+        counterRow += 1
+    print("")
+
+    bookAll.save(pathAll)
 
 def smsReportImport(smsReport:str):
     bookBase = openpyxl.load_workbook(pathBase)
@@ -352,16 +416,21 @@ def transformDocList(docList:str):
     counterA = 6
     counterNew = 1
     while counterA <= maxRowList:
-
+        #print("start")
         counterB = counterA - 1
         while counterB > 0:
+            #print(str(counterA) + " / " + str(counterB) + str(sheetList.cell(row=counterA, column=3).value) + str(sheetNew.cell(row=counterB, column=2).value))
             if (sheetList.cell(row=counterA, column=1).value == sheetNew.cell(row=counterB, column=1).value and
                     sheetList.cell(row=counterA, column=3).value == sheetNew.cell(row=counterB, column=2).value and
                     sheetList.cell(row=counterA, column=7).value == sheetNew.cell(row=counterB, column=4).value):
                 counterA += 1
                 counterB = counterA - 1
-            counterB -= 1
-
+                if counterA > maxRowList:
+                    break
+            else:
+                counterB -= 1
+        if counterA > maxRowList:
+            break
         counterColumn = 1
         for i in [1, 3, 6, 7]:
             sheetNew.cell(row=counterNew, column=counterColumn).value = sheetList.cell(row=counterA, column=i).value
@@ -389,13 +458,14 @@ def transformDocList(docList:str):
 
 
     bookNew.save(f"БФоригиналы-{str(sheetNew.cell(row=1, column=1).value)[:5]}-{str(sheetNew.cell(row=counterNew-1, column=1).value)[:5]}.xlsx")
-    print(sheetNew.max_row)
-    print(f"SMS Report - {docList} - Processed")
+    #print(sheetNew.max_row)
+    print(f"DOCS Report - {docList} - Processed")
 
 #----------------M---A---I---N----------------
 
 pathBase = "base.xlsx"
 pathLog = "LOG.txt"
+pathAll = "baseAllCalls.xlsx"
 pathEmer = "baseEmer.xlsx"
 pathPlan = "basePlan.xlsx"
 pathOrg = "listOrg.txt"
@@ -437,7 +507,7 @@ while True:
             destination_path = "arhvRecep/recep" + dateRange + ".xlsx"
             new_location = shutil.move(source_path, destination_path)
             print("File {0} Processed and Moved to \n  > > > > >  {1}".format(source_path, new_location))
-
+            VerifyCallList()
     elif x == "22":
         for file in glob.glob("Отчет за период*.xlsx"):
             if file in open(pathLog).read():
@@ -456,6 +526,8 @@ while True:
                     f.write(f"{file}\n")
                     f.close()
                     transformDocList(file)
+    elif x == "66":
+        pass
     elif x == "00":
         break
 
