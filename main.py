@@ -6,7 +6,7 @@ import os
 import pandas
 
 def backupBase():
-    shutil.copy(pathBase, f"BKPbase{currStamp}.xlsx")
+    shutil.copy(pathBase, f"arhvBKP/BKPbase{currStamp}.xlsx")
 
 def dailyImport(insReport:str):
     bookBase = openpyxl.load_workbook(pathBase)
@@ -101,16 +101,16 @@ def createContacts():
         bookBase.save(pathBase)
         nameContact = "НС"+currIndex+" на "+currStamp
         bookContact.save(nameContact+".xlsx")
-        bookPrint.save("ZZ Print "+nameContact+".xlsx")
+        bookPrint.save("arhvContacts/ZZ Print "+nameContact+".xlsx")
         pandasRead = pandas.read_excel(nameContact+".xlsx")
-        pandasRead.to_csv(nameContact+".csv", index=None, header=True, encoding='utf-8')
+        pandasRead.to_csv("arhvContacts/" + nameContact +".csv", index=None, header=True, encoding='utf-8')
         os.remove(nameContact+".xlsx")
         print(f"Contacts/Print File - {nameContact}.csv - Created")
 
 def updateCallsBase(file:str) -> str:
-    shutil.copy(pathEmer, f"BKPemer{currStamp}.xlsx")
-    shutil.copy(pathPlan, f"BKPplan{currStamp}.xlsx")
-    shutil.copy(pathAll, f"BKPall{currStamp}.xlsx")
+    shutil.copy(pathEmer, f"arhvBKP/BKPemer{currStamp}.xlsx")
+    shutil.copy(pathPlan, f"arhvBKP/BKPplan{currStamp}.xlsx")
+    shutil.copy(pathAll, f"arhvBKP/BKPall{currStamp}.xlsx")
 
     bookEmer = openpyxl.load_workbook(pathEmer)
     sheetEmer = bookEmer.active
@@ -292,6 +292,14 @@ def smsReportImport(smsReport:str):
     print("")
     print(f"SMS Report - {smsReport} - Processed")
 
+def ReportPRCD(smsReport: str):
+    bookBase = openpyxl.load_workbook(pathBase)
+    sheetBase = bookBase.active
+    bookSMS = openpyxl.load_workbook(smsReport)
+    sheetSMS = bookSMS.active
+    bookCalls = openpyxl.load_workbook(pathAll)
+    sheetCalls = bookCalls.active
+
     d1 = str(input("Day 1 of the week / mm-dd : "))
     d2 = str(input("Day 2 of the week / mm-dd : "))
     d3 = str(input("Day 3 of the week / mm-dd : "))
@@ -313,55 +321,68 @@ def smsReportImport(smsReport:str):
     maxRowSMS = sheetSMS.max_row
     maxRowBase = sheetBase.max_row
     maxRowReport = sheetReport.max_row - 2
-    #currMonth = datetime.datetime.now().month
-    #currMonth = input(f"Input month number - {datetime.datetime.now().month}?: ")
-    dateStart = sheetSMS.cell(row=maxRowSMS, column=1).value
+    maxRowCalls = sheetCalls.max_row
+
+    # move all data
+    counterFcol = 47
+    counterFrow = 2
+    for i in range(1, 12):
+        while counterFrow <= sheetReport.max_row:
+            for j in range(0, 4):
+                sheetReport.cell(row=counterFrow, column=counterFcol+4+j).value = \
+                    sheetReport.cell(row=counterFrow, column=counterFcol+j).value
+            counterFrow += 1
+        counterFcol = counterFcol - 4
+        counterFrow = 2
+
     dateEnd = sheetSMS.cell(row=2, column=1).value
     counterD = 4
     sheetReport.cell(row=1, column=6).value = "по " + str(dateEnd)[:9]
+    sheetReport.cell(row=2, column=7).value = "неделя " + d1 + " по " + d7
     femaleWeekReg = 0
     maleWeekReg = 0
-    #femaleMonthReg = 0
-    #maleMonthReg = 0
     femaleWeekIns = 0
     maleWeekIns = 0
-    #femaleMonthIns = 0
-    #maleMonthIns = 0
     femaleTotalReg = 0
     maleTotalReg = 0
     femaleTotalIns = 0
     maleTotalIns = 0
+
+    print("Processing Report... ", end="")
+    display = 0
     while counterD < maxRowReport:
+        if counterD / maxRowReport * 100 > display:
+            print(">" + str(display) + "%", end="")
+            display += 3
         quantityTotal = 0
         quantityRegis = 0
-        #quantityTotalThisM = 0
-        #quantityRegisThisM = 0
         quantityTotalLastW = 0
         quantityRegisLastW = 0
+        quantityCalls = 0
+        quantityCallsLastW = 0
         counterE = 2
         counterF = 2
         officeName = sheetReport.cell(row=counterD, column=2).value
+
+        #print("Counting new members..")
         while counterE <= maxRowBase:
             if officeName == sheetBase.cell(row=counterE, column=2).value:
-                quantityTotal += 1
-                if str(sheetBase.cell(row=counterE, column=12).value)[0] == "1":
-                    femaleTotalIns += 1
-                else:
-                    maleTotalIns += 1
-                # if str(currMonth) in str(sheetBase.cell(row=counterE, column=5).value)[5:7]:
-                #     quantityTotalThisM += 1
-                #     if str(sheetBase.cell(row=counterE, column=12).value)[0] == "1":
-                #         femaleMonthIns += 1
-                #     else:
-                #         maleMonthIns += 1
-                dayAndMonth = str(sheetBase.cell(row=counterE, column=5).value)[-5:]
-                if d1 in dayAndMonth or d2 in dayAndMonth or d3 in dayAndMonth or d4 in dayAndMonth or d5 in dayAndMonth or d6 in dayAndMonth or d7 in dayAndMonth:
-                    quantityTotalLastW += 1
+                if sheetBase.cell(row=counterE, column=20).value == "uniq":
+                    quantityTotal += 1
                     if str(sheetBase.cell(row=counterE, column=12).value)[0] == "1":
-                        femaleWeekIns += 1
+                        femaleTotalIns += 1
                     else:
-                        maleWeekIns += 1
+                        maleTotalIns += 1
+                    dayAndMonth = str(sheetBase.cell(row=counterE, column=5).value)[-5:]
+                    if d1 in dayAndMonth or d2 in dayAndMonth or d3 in dayAndMonth or \
+                            d4 in dayAndMonth or d5 in dayAndMonth or d6 in dayAndMonth or d7 in dayAndMonth:
+                        quantityTotalLastW += 1
+                        if str(sheetBase.cell(row=counterE, column=12).value)[0] == "1":
+                            femaleWeekIns += 1
+                        else:
+                            maleWeekIns += 1
             counterE += 1
+        #print("Counting new registrations..")
         while counterF <= maxRowSMS:
             if officeName == sheetSMS.cell(row=counterF, column=6).value:
                 quantityRegis += 1
@@ -369,12 +390,6 @@ def smsReportImport(smsReport:str):
                     femaleTotalReg += 1
                 else:
                     maleTotalReg += 1
-                # if str(currMonth) in str(sheetSMS.cell(row=counterF, column=1).value)[3:5]:
-                #     quantityRegisThisM += 1
-                #     if str(sheetSMS.cell(row=counterF, column=8).value)[0] == "1":
-                #         femaleMonthReg += 1
-                #     else:
-                #         maleMonthReg += 1
                 dayAndMonth = str(sheetSMS.cell(row=counterF, column=1).value)[:5]
                 if s1 in dayAndMonth or s2 in dayAndMonth or s3 in dayAndMonth or s4 in dayAndMonth or s5 in dayAndMonth or s6 in dayAndMonth or s7 in dayAndMonth:
                     quantityRegisLastW += 1
@@ -383,29 +398,58 @@ def smsReportImport(smsReport:str):
                     else:
                         maleWeekReg += 1
             counterF += 1
+        #print("Counting receptions..")
+        counterF = 2
+        while counterF <= maxRowCalls:
+            if officeName == sheetCalls.cell(row=counterF, column=8).value:
+                quantityCalls += 1
+                dayAndMonth = str(sheetCalls.cell(row=counterF, column=1).value)[-5:]
+                if d1 in dayAndMonth or d2 in dayAndMonth or d3 in dayAndMonth or \
+                        d4 in dayAndMonth or d5 in dayAndMonth or d6 in dayAndMonth or d7 in dayAndMonth:
+                    quantityCallsLastW += 1
+            counterF += 1
         sheetReport.cell(row=counterD, column=3).value = quantityTotal
         sheetReport.cell(row=counterD, column=4).value = quantityRegis
-        # sheetReport.cell(row=counterD, column=12).value = quantityTotalThisM
-        # sheetReport.cell(row=counterD, column=13).value = quantityRegisThisM
-        sheetReport.cell(row=counterD, column=6).value = quantityTotalLastW
-        sheetReport.cell(row=counterD, column=7).value = quantityRegisLastW
-        sheetReport.cell(row=2, column=6).value = "неделя " + d1 + " по " + d7
+        sheetReport.cell(row=counterD, column=7).value = quantityTotalLastW
+        sheetReport.cell(row=counterD, column=8).value = quantityRegisLastW
+        sheetReport.cell(row=counterD, column=6).value = quantityCalls
+        sheetReport.cell(row=counterD, column=10).value = quantityCallsLastW
         counterD += 1
 
     sheetReport.cell(row=maxRowReport + 1, column=3).value = maleTotalIns
     sheetReport.cell(row=maxRowReport + 2, column=3).value = femaleTotalIns
     sheetReport.cell(row=maxRowReport + 1, column=4).value = maleTotalReg
     sheetReport.cell(row=maxRowReport + 2, column=4).value = femaleTotalReg
-    sheetReport.cell(row=maxRowReport + 1, column=6).value = maleWeekIns
-    sheetReport.cell(row=maxRowReport + 2, column=6).value = femaleWeekIns
-    sheetReport.cell(row=maxRowReport + 1, column=7).value = maleWeekReg
-    sheetReport.cell(row=maxRowReport + 2, column=7).value = femaleWeekReg
-    # sheetReport.cell(row=maxRowReport + 1, column=12).value = maleMonthIns
-    # sheetReport.cell(row=maxRowReport + 2, column=12).value = femaleMonthIns
-    # sheetReport.cell(row=maxRowReport + 1, column=13).value = maleMonthReg
-    # sheetReport.cell(row=maxRowReport + 2, column=13).value = femaleMonthReg
-    bookReport.save("Отчет по регистрациям в Мой Доктор на " + currStamp + ".xlsx")
+    sheetReport.cell(row=maxRowReport + 1, column=7).value = maleWeekIns
+    sheetReport.cell(row=maxRowReport + 2, column=7).value = femaleWeekIns
+    sheetReport.cell(row=maxRowReport + 1, column=8).value = maleWeekReg
+    sheetReport.cell(row=maxRowReport + 2, column=8).value = femaleWeekReg
 
+    print(">>100!>>>")
+    #bookReport.save("Отчет по регистрациям в Мой Доктор на " + currStamp + ".xlsx")
+    bookReport.save("TemplateReport.xlsx")
+def checkUniqueClient():
+    bookBase = openpyxl.load_workbook(pathBase)
+    sheetBase = bookBase.active
+    maxRowBase = sheetBase.max_row
+    counterE = 3
+    print("Processing Base... ", end="")
+    display = 0
+    while counterE <= maxRowBase:
+        if counterE / maxRowBase * 100 > display:
+            print(">" + str(display) + "%", end="")
+            display += 3
+        if sheetBase.cell(row=counterE, column=20).value == None:
+            sheetBase.cell(row=counterE, column=20).value = "rept"
+            counterDuplicate = counterE - 1
+            while sheetBase.cell(row=counterE, column=3).value != sheetBase.cell(row=counterDuplicate, column=3).value:
+                counterDuplicate -= 1
+                if counterDuplicate == 1:
+                    sheetBase.cell(row=counterE, column=20).value = "uniq"
+                    break
+        counterE += 1
+    print(">>100!>>>")
+    bookBase.save(pathBase)
 def transformDocList(docList:str):
     bookList = openpyxl.load_workbook(docList)
     sheetList = bookList.active
@@ -490,6 +534,8 @@ while True:
                     f.write(f"{file}\n")
                     f.close()
                     dailyImport(file)
+                    destination_path = "arhvIns/recep" + file
+                    shutil.move(file, destination_path)
         for file in glob.glob("E-Strah*.xlsx"):
             if file in open(pathLog).read():
                 pass
@@ -498,6 +544,8 @@ while True:
                     f.write(f"{file}\n")
                     f.close()
                     dailyImport(file)
+                    destination_path = "arhvIns/" + file
+                    shutil.move(file, destination_path)
         createContacts()
 
     elif x == "33":
@@ -517,6 +565,8 @@ while True:
                     #f.write(f"{file}\n")
                     f.close()
                     smsReportImport(file)
+        for file in glob.glob("PRCD*.xlsx"):
+            ReportPRCD(file)
     elif x == "44":
         for file in glob.glob("доки*.xlsx"):
             if file in open(pathLog).read():
@@ -527,7 +577,10 @@ while True:
                     f.close()
                     transformDocList(file)
     elif x == "66":
-        pass
+        for file in glob.glob("PRCD*.xlsx"):
+            ReportPRCD(file)
+    elif x == "88":
+        checkUniqueClient()
     elif x == "00":
         break
 
