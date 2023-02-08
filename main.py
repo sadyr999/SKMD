@@ -4,9 +4,10 @@ import datetime
 import glob
 import os
 import pandas
-
+import random
 def backupBase():
-    shutil.copy(pathBase, f"arhvBKP/BKPbase{currStamp}.xlsx")
+    randomNum = random.randrange(1, 99)
+    shutil.copy(pathBase, f"arhvBKP/BKPbase{currStamp}-{str(randomNum)}.xlsx")
 
 def dailyImport(insReport:str):
     bookBase = openpyxl.load_workbook(pathBase)
@@ -190,42 +191,52 @@ def updateCallsBase(file:str) -> str:
 def VerifyCallList():
     bookAll = openpyxl.load_workbook(pathAll)
     sheetAll = bookAll.active
+    bookBase = openpyxl.load_workbook(pathBase)
+    sheetBase = bookBase.active
 
     counterRow = 2
     display = 0
 
     lastRowAll = sheetAll.max_row
     print("Verifying POLICY CARDS", end="")
+    maxRowOr = sheetBase.max_row
     while counterRow <= lastRowAll:
-        policyNum = sheetAll.cell(row=counterRow, column=6).value
-        if policyNum == "НЕТ ПОЛИСА":
-            counterRow += 1
-            continue
-        counterPolicy = counterRow-1
-        policyNew = True
-        while counterPolicy > 2:
-            if policyNum == sheetAll.cell(row=counterPolicy, column=6).value:
-                sheetAll.cell(row=counterRow, column=9).value = "повторное"
-                sheetAll.cell(row=counterRow, column=10).value = sheetAll.cell(row=counterPolicy, column=10).value
+        if sheetAll.cell(row=counterRow, column=9).value == None:
+            maxRow = maxRowOr
+            while maxRow > 1:
+                if sheetBase.cell(row=maxRow, column=3).value == sheetAll.cell(row=counterRow, column=4).value:
+                    sheetAll.cell(row=counterRow, column=13).value = sheetBase.cell(row=maxRow, column=14).value
+                    maxRow = 0
+                maxRow -= 1
+            policyNum = sheetAll.cell(row=counterRow, column=6).value
+            if policyNum == "НЕТ ПОЛИСА":
+                counterRow += 1
+                continue
+            counterPolicy = counterRow-1
+            policyNew = True
+            while counterPolicy > 2:
+                if policyNum == sheetAll.cell(row=counterPolicy, column=6).value:
+                    sheetAll.cell(row=counterRow, column=9).value = "повторное"
+                    sheetAll.cell(row=counterRow, column=10).value = sheetAll.cell(row=counterPolicy, column=10).value
+                    if "Дежурный" in sheetAll.cell(row=counterRow, column=5).value:
+                        sheetAll.cell(row=counterRow, column=11).value = "дежурный"
+                        sheetAll.cell(row=counterRow, column=12).value = sheetAll.cell(row=counterPolicy, column=12).value
+                    else:
+                        sheetAll.cell(row=counterRow, column=11).value = "плановый"
+                        cellInqNum = int(sheetAll.cell(row=counterPolicy, column=12).value) + 1
+                        sheetAll.cell(row=counterRow, column=12).value = cellInqNum
+                    policyNew = False
+                    break
+                counterPolicy -= 1
+            if policyNew:
                 if "Дежурный" in sheetAll.cell(row=counterRow, column=5).value:
                     sheetAll.cell(row=counterRow, column=11).value = "дежурный"
-                    sheetAll.cell(row=counterRow, column=12).value = sheetAll.cell(row=counterPolicy, column=12).value
+                    sheetAll.cell(row=counterRow, column=12).value = 0
                 else:
                     sheetAll.cell(row=counterRow, column=11).value = "плановый"
-                    cellInqNum = int(sheetAll.cell(row=counterPolicy, column=12).value) + 1
-                    sheetAll.cell(row=counterRow, column=12).value = cellInqNum
-                policyNew = False
-                break
-            counterPolicy -= 1
-        if policyNew:
-            if "Дежурный" in sheetAll.cell(row=counterRow, column=5).value:
-                sheetAll.cell(row=counterRow, column=11).value = "дежурный"
-                sheetAll.cell(row=counterRow, column=12).value = 0
-            else:
-                sheetAll.cell(row=counterRow, column=11).value = "плановый"
-                sheetAll.cell(row=counterRow, column=12).value = 1
-            sheetAll.cell(row=counterRow, column=9).value = "открытие файла"
-            sheetAll.cell(row=counterRow, column=10).value = policyNum + " от " + sheetAll.cell(row=counterRow, column=1).value
+                    sheetAll.cell(row=counterRow, column=12).value = 1
+                sheetAll.cell(row=counterRow, column=9).value = "открытие файла"
+                sheetAll.cell(row=counterRow, column=10).value = policyNum + " от " + sheetAll.cell(row=counterRow, column=1).value
 
         if counterRow/lastRowAll*100 > display:
             print(">"+str(display)+"%", end="")
@@ -300,134 +311,141 @@ def ReportPRCD(smsReport: str):
     bookCalls = openpyxl.load_workbook(pathAll)
     sheetCalls = bookCalls.active
 
-    d1 = str(input("Day 1 of the week / mm-dd : "))
-    d2 = str(input("Day 2 of the week / mm-dd : "))
-    d3 = str(input("Day 3 of the week / mm-dd : "))
-    d4 = str(input("Day 4 of the week / mm-dd : "))
-    d5 = str(input("Day 5 of the week / mm-dd : "))
-    d6 = str(input("Day 6 of the week / mm-dd : "))
-    d7 = str(input("Day 7 of the week / mm-dd : "))
-    s1 = d1[3] + d1[4] + "." + d1[0] + d1[1]
-    s2 = d2[3] + d2[4] + "." + d2[0] + d2[1]
-    s3 = d3[3] + d3[4] + "." + d3[0] + d3[1]
-    s4 = d4[3] + d4[4] + "." + d4[0] + d4[1]
-    s5 = d5[3] + d5[4] + "." + d5[0] + d5[1]
-    s6 = d6[3] + d6[4] + "." + d6[0] + d6[1]
-    s7 = d7[3] + d7[4] + "." + d7[0] + d7[1]
+    while True:
+        d1 = str(input("Day 1 of the week / mm-dd : "))
+        if d1 == "00":
+            break
+        d2 = str(input("Day 2 of the week / mm-dd : "))
+        d3 = str(input("Day 3 of the week / mm-dd : "))
+        d4 = str(input("Day 4 of the week / mm-dd : "))
+        d5 = str(input("Day 5 of the week / mm-dd : "))
+        d6 = str(input("Day 6 of the week / mm-dd : "))
+        d7 = str(input("Day 7 of the week / mm-dd : "))
+        s1 = d1[3] + d1[4] + "." + d1[0] + d1[1]
+        s2 = d2[3] + d2[4] + "." + d2[0] + d2[1]
+        s3 = d3[3] + d3[4] + "." + d3[0] + d3[1]
+        s4 = d4[3] + d4[4] + "." + d4[0] + d4[1]
+        s5 = d5[3] + d5[4] + "." + d5[0] + d5[1]
+        s6 = d6[3] + d6[4] + "." + d6[0] + d6[1]
+        s7 = d7[3] + d7[4] + "." + d7[0] + d7[1]
 
-    bookReport = openpyxl.load_workbook("TemplateReport.xlsx")
-    sheetReport = bookReport.active
+        bookReport = openpyxl.load_workbook("TemplateReport.xlsx")
+        sheetReport = bookReport.active
 
-    maxRowSMS = sheetSMS.max_row
-    maxRowBase = sheetBase.max_row
-    maxRowReport = sheetReport.max_row - 2
-    maxRowCalls = sheetCalls.max_row
+        maxRowSMS = sheetSMS.max_row
+        maxRowBase = sheetBase.max_row
+        maxRowReport = 51 #sheetReport.max_row - 2
+        print(maxRowReport)
+        maxRowCalls = sheetCalls.max_row
 
-    # move all data
-    counterFcol = 47
-    counterFrow = 2
-    for i in range(1, 12):
-        while counterFrow <= sheetReport.max_row:
-            for j in range(0, 4):
-                sheetReport.cell(row=counterFrow, column=counterFcol+4+j).value = \
-                    sheetReport.cell(row=counterFrow, column=counterFcol+j).value
-            counterFrow += 1
-        counterFcol = counterFcol - 4
+        # move all data
+        counterFcol = 47
         counterFrow = 2
+        for i in range(1, 12):
+            if True:
+                while counterFrow <= sheetReport.max_row:
+                    for j in range(0, 4):
+                        if j != 2 and counterFrow != 51:
+                            sheetReport.cell(row=counterFrow, column=counterFcol+4+j).value = \
+                                sheetReport.cell(row=counterFrow, column=counterFcol+j).value
+                    counterFrow += 1
+            counterFcol = counterFcol - 4
+            counterFrow = 2
 
-    dateEnd = sheetSMS.cell(row=2, column=1).value
-    counterD = 4
-    sheetReport.cell(row=1, column=6).value = "по " + str(dateEnd)[:9]
-    sheetReport.cell(row=2, column=7).value = "неделя " + d1 + " по " + d7
-    femaleWeekReg = 0
-    maleWeekReg = 0
-    femaleWeekIns = 0
-    maleWeekIns = 0
-    femaleTotalReg = 0
-    maleTotalReg = 0
-    femaleTotalIns = 0
-    maleTotalIns = 0
+        dateEnd = sheetSMS.cell(row=2, column=1).value
+        counterD = 4
+        sheetReport.cell(row=1, column=6).value = "по " + str(dateEnd)[:9]
+        sheetReport.cell(row=2, column=7).value = "неделя " + d1 + " по " + d7
+        femaleWeekReg = 0
+        maleWeekReg = 0
+        femaleWeekIns = 0
+        maleWeekIns = 0
+        femaleTotalReg = 0
+        maleTotalReg = 0
+        femaleTotalIns = 0
+        maleTotalIns = 0
 
-    print("Processing Report... ", end="")
-    display = 0
-    while counterD < maxRowReport:
-        if counterD / maxRowReport * 100 > display:
-            print(">" + str(display) + "%", end="")
-            display += 3
-        quantityTotal = 0
-        quantityRegis = 0
-        quantityTotalLastW = 0
-        quantityRegisLastW = 0
-        quantityCalls = 0
-        quantityCallsLastW = 0
-        counterE = 2
-        counterF = 2
-        officeName = sheetReport.cell(row=counterD, column=2).value
+        print("Processing Report... ", end="")
+        display = 0
+        while counterD < maxRowReport:
+            if counterD / maxRowReport * 100 > display:
+                print(">" + str(display) + "%", end="")
+                display += 3
+            quantityTotal = 0
+            quantityRegis = 0
+            quantityTotalLastW = 0
+            quantityRegisLastW = 0
+            quantityCalls = 0
+            quantityCallsLastW = 0
+            counterE = 2
+            counterF = 2
+            officeName = sheetReport.cell(row=counterD, column=2).value
 
-        #print("Counting new members..")
-        while counterE <= maxRowBase:
-            if officeName == sheetBase.cell(row=counterE, column=2).value:
-                if sheetBase.cell(row=counterE, column=20).value == "uniq":
-                    quantityTotal += 1
-                    if str(sheetBase.cell(row=counterE, column=12).value)[0] == "1":
-                        femaleTotalIns += 1
+            #print("Counting new members..")
+            while counterE <= maxRowBase:
+                if officeName == sheetBase.cell(row=counterE, column=2).value:
+                    if sheetBase.cell(row=counterE, column=20).value == "uniq":
+                        quantityTotal += 1
+                        if str(sheetBase.cell(row=counterE, column=12).value)[0] == "1":
+                            femaleTotalIns += 1
+                        else:
+                            maleTotalIns += 1
+                        dayAndMonth = str(sheetBase.cell(row=counterE, column=5).value)[-5:]
+                        if d1 in dayAndMonth or d2 in dayAndMonth or d3 in dayAndMonth or \
+                                d4 in dayAndMonth or d5 in dayAndMonth or d6 in dayAndMonth or d7 in dayAndMonth:
+                            quantityTotalLastW += 1
+                            if str(sheetBase.cell(row=counterE, column=12).value)[0] == "1":
+                                femaleWeekIns += 1
+                            else:
+                                maleWeekIns += 1
+                counterE += 1
+            #print("Counting new registrations..")
+            while counterF <= maxRowSMS:
+                if officeName == sheetSMS.cell(row=counterF, column=6).value:
+                    quantityRegis += 1
+                    if str(sheetSMS.cell(row=counterF, column=8).value)[0] == "1":
+                        femaleTotalReg += 1
                     else:
-                        maleTotalIns += 1
-                    dayAndMonth = str(sheetBase.cell(row=counterE, column=5).value)[-5:]
+                        maleTotalReg += 1
+                    dayAndMonth = str(sheetSMS.cell(row=counterF, column=1).value)[:5]
+                    if s1 in dayAndMonth or s2 in dayAndMonth or s3 in dayAndMonth or s4 in dayAndMonth or s5 in dayAndMonth or s6 in dayAndMonth or s7 in dayAndMonth:
+                        quantityRegisLastW += 1
+                        if str(sheetSMS.cell(row=counterF, column=8).value)[0] == "1":
+                            femaleWeekReg += 1
+                        else:
+                            maleWeekReg += 1
+                counterF += 1
+            #print("Counting receptions..")
+            counterF = 2
+            while counterF <= maxRowCalls:
+                if officeName == sheetCalls.cell(row=counterF, column=8).value:
+                    quantityCalls += 1
+                    dayAndMonth = str(sheetCalls.cell(row=counterF, column=1).value)[-5:]
                     if d1 in dayAndMonth or d2 in dayAndMonth or d3 in dayAndMonth or \
                             d4 in dayAndMonth or d5 in dayAndMonth or d6 in dayAndMonth or d7 in dayAndMonth:
-                        quantityTotalLastW += 1
-                        if str(sheetBase.cell(row=counterE, column=12).value)[0] == "1":
-                            femaleWeekIns += 1
-                        else:
-                            maleWeekIns += 1
-            counterE += 1
-        #print("Counting new registrations..")
-        while counterF <= maxRowSMS:
-            if officeName == sheetSMS.cell(row=counterF, column=6).value:
-                quantityRegis += 1
-                if str(sheetSMS.cell(row=counterF, column=8).value)[0] == "1":
-                    femaleTotalReg += 1
-                else:
-                    maleTotalReg += 1
-                dayAndMonth = str(sheetSMS.cell(row=counterF, column=1).value)[:5]
-                if s1 in dayAndMonth or s2 in dayAndMonth or s3 in dayAndMonth or s4 in dayAndMonth or s5 in dayAndMonth or s6 in dayAndMonth or s7 in dayAndMonth:
-                    quantityRegisLastW += 1
-                    if str(sheetSMS.cell(row=counterF, column=8).value)[0] == "1":
-                        femaleWeekReg += 1
-                    else:
-                        maleWeekReg += 1
-            counterF += 1
-        #print("Counting receptions..")
-        counterF = 2
-        while counterF <= maxRowCalls:
-            if officeName == sheetCalls.cell(row=counterF, column=8).value:
-                quantityCalls += 1
-                dayAndMonth = str(sheetCalls.cell(row=counterF, column=1).value)[-5:]
-                if d1 in dayAndMonth or d2 in dayAndMonth or d3 in dayAndMonth or \
-                        d4 in dayAndMonth or d5 in dayAndMonth or d6 in dayAndMonth or d7 in dayAndMonth:
-                    quantityCallsLastW += 1
-            counterF += 1
-        sheetReport.cell(row=counterD, column=3).value = quantityTotal
-        sheetReport.cell(row=counterD, column=4).value = quantityRegis
-        sheetReport.cell(row=counterD, column=7).value = quantityTotalLastW
-        sheetReport.cell(row=counterD, column=8).value = quantityRegisLastW
-        sheetReport.cell(row=counterD, column=6).value = quantityCalls
-        sheetReport.cell(row=counterD, column=10).value = quantityCallsLastW
-        counterD += 1
+                        quantityCallsLastW += 1
+                counterF += 1
+            sheetReport.cell(row=counterD, column=3).value = quantityTotal
+            sheetReport.cell(row=counterD, column=4).value = quantityRegis
+            sheetReport.cell(row=counterD, column=7).value = quantityTotalLastW
+            sheetReport.cell(row=counterD, column=8).value = quantityRegisLastW
+            sheetReport.cell(row=counterD, column=6).value = quantityCalls
+            sheetReport.cell(row=counterD, column=10).value = quantityCallsLastW
+            counterD += 1
 
-    sheetReport.cell(row=maxRowReport + 1, column=3).value = maleTotalIns
-    sheetReport.cell(row=maxRowReport + 2, column=3).value = femaleTotalIns
-    sheetReport.cell(row=maxRowReport + 1, column=4).value = maleTotalReg
-    sheetReport.cell(row=maxRowReport + 2, column=4).value = femaleTotalReg
-    sheetReport.cell(row=maxRowReport + 1, column=7).value = maleWeekIns
-    sheetReport.cell(row=maxRowReport + 2, column=7).value = femaleWeekIns
-    sheetReport.cell(row=maxRowReport + 1, column=8).value = maleWeekReg
-    sheetReport.cell(row=maxRowReport + 2, column=8).value = femaleWeekReg
+        sheetReport.cell(row=maxRowReport + 1, column=3).value = maleTotalIns
+        sheetReport.cell(row=maxRowReport + 2, column=3).value = femaleTotalIns
+        sheetReport.cell(row=maxRowReport + 1, column=4).value = maleTotalReg
+        sheetReport.cell(row=maxRowReport + 2, column=4).value = femaleTotalReg
+        sheetReport.cell(row=maxRowReport + 1, column=7).value = maleWeekIns
+        sheetReport.cell(row=maxRowReport + 2, column=7).value = femaleWeekIns
+        sheetReport.cell(row=maxRowReport + 1, column=8).value = maleWeekReg
+        sheetReport.cell(row=maxRowReport + 2, column=8).value = femaleWeekReg
 
-    print(">>100!>>>")
+        print(">>100!>>>")
+        bookReport.save("TemplateReport.xlsx")
+
     #bookReport.save("Отчет по регистрациям в Мой Доктор на " + currStamp + ".xlsx")
-    bookReport.save("TemplateReport.xlsx")
 def checkUniqueClient():
     bookBase = openpyxl.load_workbook(pathBase)
     sheetBase = bookBase.active
@@ -450,6 +468,108 @@ def checkUniqueClient():
         counterE += 1
     print(">>100!>>>")
     bookBase.save(pathBase)
+def checkActive(smsReport: str):
+    bookSMS = openpyxl.load_workbook(smsReport)
+    sheetSMS = bookSMS.active
+    bookBase = openpyxl.load_workbook(pathBase)
+    sheetBase = bookBase.active
+    maxRowBase = sheetBase.max_row
+    maxRowSMS = sheetSMS.max_row
+    counterE = 3
+    print("Processing Base... ", end="")
+    display = 0
+    while counterE <= maxRowBase:
+        if counterE / maxRowBase * 100 > display:
+            print(">" + str(display) + "%", end="")
+            display += 3
+        if sheetBase.cell(row=counterE, column=20).value != "uniq":
+            sheetBase.cell(row=counterE, column=21).value = sheetBase.cell(row=counterE, column=20).value
+        elif sheetBase.cell(row=counterE, column=21).value == None or sheetBase.cell(row=counterE, column=21).value == "neakt":
+            sheetBase.cell(row=counterE, column=21).value = "neakt"
+            counterSMS = 2
+            while counterSMS <= maxRowSMS:
+                if sheetBase.cell(row=counterE, column=3).value == sheetSMS.cell(row=counterSMS, column=3).value:
+                    sheetBase.cell(row=counterE, column=21).value = "aktiv"
+                    break
+                counterSMS += 1
+        counterE += 1
+
+    counterE = 2
+    print("")
+    bookCalls = openpyxl.load_workbook(pathAll)
+    sheetCalls = bookCalls.active
+    maxRowCalls = sheetCalls.max_row
+    print("Calculating calls... ", end="")
+    display = 0
+    while counterE <= maxRowBase:
+        counterEmer = 0
+        counterPlan = 0
+        if counterE / maxRowBase * 100 > display:
+            print(">" + str(display) + "%", end="")
+            display += 3
+        if sheetBase.cell(row=counterE, column=21).value == "aktiv":
+            counterSMS = 2
+            while counterSMS <= maxRowCalls:
+                if sheetBase.cell(row=counterE, column=3).value == sheetCalls.cell(row=counterSMS, column=4).value:
+                    if "Дежур" in sheetCalls.cell(row=counterSMS, column=5).value:
+                        counterEmer += 1
+                    else:
+                        counterPlan += 1
+                    sheetBase.cell(row=counterE, column=22).value = counterEmer
+                    sheetBase.cell(row=counterE, column=23).value = counterPlan
+                counterSMS += 1
+        counterE += 1
+    print(">>100!>>>")
+    bookBase.save(pathBase)
+
+def extractTop100():
+    bookBase = openpyxl.load_workbook(pathBase)
+    sheetBase = bookBase.active
+    counterClients = 0
+    #first top active, not this month
+    my_date = datetime.date.today()
+    year, week_num, day_of_week = my_date.isocalendar()
+    currWeek = week_num
+    maxRow = sheetBase.max_row
+    randomNum = random.randrange(1, 99)
+    callerName = input("Call-Center Name: ")
+    f = open("обзвон-" + str(currWeek) + "-нед-" + callerName + "-" + currTime + ".txt", 'w')
+    f.write("обзвон - " + str(currWeek) + " - неделя " + callerName)
+    f.write('\n')
+
+    while counterClients < 30:
+        counterA = 2
+        maxCall = 0
+        maxIndex = 0
+        while counterA < maxRow:
+            if sheetBase.cell(row=counterA, column=22).value == None:
+                currCall = 0
+            else:
+                currCall = sheetBase.cell(row=counterA, column=22).value + sheetBase.cell(row=counterA, column=23).value
+            if currCall > maxCall and sheetBase.cell(row=counterA, column=24).value == None:
+                maxCall = currCall
+                maxIndex = counterA
+            counterA += 1
+        if maxIndex != 0:
+            sheetBase.cell(row=maxIndex, column=24).value = currWeek
+            sheetBase.cell(row=maxIndex, column=25).value = callerName
+            f.write(str(counterClients) + " " + sheetBase.cell(row=maxIndex, column=3).value + " " + sheetBase.cell(row=maxIndex, column=14).value + " " + sheetBase.cell(row=maxIndex, column=2).value + " пр:" + str(maxCall))
+            f.write('\n')
+            counterClients += 1
+        else:
+            while counterClients < 30:
+                randomCell = random.randrange(2, maxRow)
+                if sheetBase.cell(row=randomCell, column=21).value == "aktiv" and sheetBase.cell(row=randomCell, column=24).value == None:
+                    sheetBase.cell(row=randomCell, column=24).value = currWeek
+                    sheetBase.cell(row=randomCell, column=25).value = callerName
+                    f.write(str(counterClients) + " " + sheetBase.cell(row=randomCell, column=3).value + " " + sheetBase.cell(
+                    row=randomCell, column=14).value + " приемов нет")
+                    f.write('\n')
+                    counterClients += 1
+
+    f.close()
+    bookBase.save(pathBase)
+
 def transformDocList(docList:str):
     bookList = openpyxl.load_workbook(docList)
     sheetList = bookList.active
@@ -482,7 +602,6 @@ def transformDocList(docList:str):
         insCase = str(sheetNew.cell(row=counterNew, column=4).value)
         sheetNew.cell(row=counterNew, column=5).value = "заявление"
         sheetNew.cell(row=counterNew, column=6).value = "ожидаем"
-
         if "смерть" in insCase:
             counterNew += 1
             for i in [1, 2, 3, 4, 6]:
@@ -497,9 +616,10 @@ def transformDocList(docList:str):
             for i in [1, 2, 3, 4, 6]:
                 sheetNew.cell(row=counterNew, column=i).value = sheetNew.cell(row=counterNew-1, column=i).value
             sheetNew.cell(row=counterNew, column=5).value = "эпикриз оригинал"
+        if sheetNew.cell(row=counterNew, column=4).value is None:
+            counterNew -= 1
         counterNew += 1
         counterA += 1
-
 
     bookNew.save(f"БФоригиналы-{str(sheetNew.cell(row=1, column=1).value)[:5]}-{str(sheetNew.cell(row=counterNew-1, column=1).value)[:5]}.xlsx")
     #print(sheetNew.max_row)
@@ -515,13 +635,14 @@ pathPlan = "basePlan.xlsx"
 pathOrg = "listOrg.txt"
 pathSov = "listSov.txt"
 currStamp = str(datetime.datetime.now())[:10]
+currTime = (str(datetime.datetime.now())[5:16])
 
 with open(pathLog, "a+") as f:
     f.write(f"{str(datetime.datetime.now())}\n")
     f.close();
 
 while True:
-    x = input("11 for ОБРАБОТКА СПИСКОВ ЗАСТРАХОВАННЫХ \n22 for ИМПОРТ СМС ОТЧЕТОВ \n"
+    x = input("11 for ОБРАБОТКА СПИСКОВ ЗАСТРАХОВАННЫХ \n22 for ИМПОРТ СМС ОТЧЕТА / 222 ФОРМИРОВАНИЕ ОТЧЕТА \n"
               "33 for ИМПОРТ СПИСКА ПРИЕМОВ \n44 for СПИСОК ДОКОВ СК \n00 for ВЫХОД \nIN: ")
 
     if x == "11":
@@ -547,7 +668,6 @@ while True:
                     destination_path = "arhvIns/" + file
                     shutil.move(file, destination_path)
         createContacts()
-
     elif x == "33":
         for file in glob.glob("rece*.xlsx"):
             dateRange = updateCallsBase(file)
@@ -565,22 +685,25 @@ while True:
                     #f.write(f"{file}\n")
                     f.close()
                     smsReportImport(file)
-        for file in glob.glob("PRCD*.xlsx"):
-            ReportPRCD(file)
     elif x == "44":
         for file in glob.glob("доки*.xlsx"):
-            if file in open(pathLog).read():
-                pass
-            else:
-                with open(pathLog, "a+") as f:
-                    f.write(f"{file}\n")
-                    f.close()
-                    transformDocList(file)
-    elif x == "66":
+                transformDocList(file)
+    elif x == "222":
+        checkUniqueClient()
         for file in glob.glob("PRCD*.xlsx"):
             ReportPRCD(file)
-    elif x == "88":
-        checkUniqueClient()
+
+    elif x == "666":
+        VerifyCallList()
+
+    elif x == "999":
+        backupBase()
+        for file in glob.glob("PRCD*.xlsx"):
+            checkActive(file)
+            pass
+        extractTop100()
+        while (input("11 to continue: ") == "11"):
+            extractTop100()
     elif x == "00":
         break
 
