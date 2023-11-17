@@ -8,16 +8,21 @@ import random
 import json
 import pandas as pd
 from pandasql import sqldf
-
+import math
+from collections import defaultdict, OrderedDict
 def backupBase():
     print("Backing up BASE..")
     randomNum = random.randrange(1, 99)
     shutil.copy(pathBase, f"arhvBKP/BKPbase{currStamp}-{str(randomNum)}.xlsx")
+def backupLog():
+    print("Backing up LOG..")
+    randomNum = random.randrange(1, 99)
+    shutil.copy("LogReceptions.xlsx", f"arhvBKP/BKPLog{currStamp}-{str(randomNum)}.xlsx")
 def dailyImport():
     backupBase()
     bookBase = openpyxl.load_workbook(pathBase)
     sheetBase = bookBase.active
-    lastRawBase = sheetBase.max_row+1
+    lastRawBase = sheetBase.max_row + 1
 
     for file in glob.glob("Страх*.xlsx"):
         if file in open(pathLog).read():
@@ -30,66 +35,66 @@ def dailyImport():
                 insReport = file
                 bookIns = openpyxl.load_workbook(pathIns)
                 sheetIns = bookIns.active
-                while True:
-                    while True:
-                        x = input(f"{insReport} --- 11-Dinara 22-Venera 33-Web: ")
-                        if x == "11":
-                            if input(f"{sheetIns.cell(row=4,column=4).value} / {sheetIns.cell(row=4,column=15).value} press 00 if OK: ") == "00":
-                                break
-                        if x == "22":
-                            if input(f"{sheetIns.cell(row=4,column=4).value} / {sheetIns.cell(row=4,column=14).value} press 00 if OK: ") == "00":
-                                break
-                        if x == "33":
-                            if input(f"{sheetIns.cell(row=4,column=3).value} / {sheetIns.cell(row=4,column=14).value} press 00 if OK: ") == "00":
-                                break
-                    if x == "11":
-                        sheetIns.delete_cols(1)
-                        sheetIns.delete_cols(12)
-                        break
-                    elif x == "22":
-                        #sheetIns.cell(row=sheetIns.max_row, column=11).value = sheetIns.cell(row=sheetIns.max_row, column=15).value
-                        sheetIns.delete_cols(15)
-                        sheetIns.delete_cols(1)
-                        break
-                    elif x == 33:
-                        sheetIns.delete_cols(12)
-                        break
-                    else:
-                        print("INCORRECT INPUT")
-
-                cellA = sheetIns['L3']
-                cellA.value = "INN"
-                cellB = sheetIns['M3']
-                cellB.value = "PhoneNumber"
+                bookNew = openpyxl.load_workbook(pathRepINS)
+                sheetNew = bookNew.active
 
                 maxRow = sheetIns.max_row
                 maxColumn = sheetIns.max_column
+
                 counterA = 4
-                #while counterA < maxRow:
+                # while counterA < maxRow:
                 while sheetIns.cell(row=counterA, column=2).value != None:
-                    phoneCell = sheetIns.cell(row=counterA, column=13)
-                    phoneOrig = str(phoneCell.value)
+
+                    dateS = str(sheetIns.cell(row=counterA, column=6).value)
+                    startDate = dateS[6:10] + "-" + dateS[3:5] + "-" + dateS[0:2]
+
+                    sheetNew.cell(row=counterA, column=1).value = sheetIns.cell(row=counterA, column=12).value
+                    sheetNew.cell(row=counterA, column=2).value = sheetIns.cell(row=counterA, column=13).value
+                    sheetNew.cell(row=counterA, column=3).value = sheetIns.cell(row=counterA, column=4).value
+                    sheetNew.cell(row=counterA, column=4).value = sheetIns.cell(row=counterA,
+                                                                                column=1).value + " " + str(
+                        sheetIns.cell(row=counterA, column=2).value)
+                    sheetNew.cell(row=counterA, column=5).value = str(sheetIns.cell(row=counterA, column=6).value)[0:10]
+                    sheetNew.cell(row=counterA, column=6).value = sheetIns.cell(row=counterA, column=7).value.strftime(
+                        "%d.%m.%Y")
+                    sheetNew.cell(row=counterA, column=7).value = sheetIns.cell(row=counterA, column=10).value
+
+                    sheetNew.cell(row=counterA, column=8).value = math.ceil(
+                        sheetIns.cell(row=counterA, column=14).value / 30)
+                    sheetNew.cell(row=counterA, column=9).value = round(sheetIns.cell(row=counterA, column=15).value,
+                                                                        1) - 0.1
+                    sheetNew.cell(row=counterA, column=10).value = sheetIns.cell(row=counterA,
+                                                                                 column=10).value * sheetNew.cell(
+                        row=counterA, column=9).value / 100
+                    sheetNew.cell(row=counterA, column=11).value = sheetNew.cell(row=counterA, column=10).value * 0.03
+
+                    sheetNew.cell(row=counterA, column=12).value = sheetIns.cell(row=counterA, column=3).value
+
+                    phoneCell = ""
+                    phoneOrig = str(sheetIns.cell(row=counterA, column=18).value)[0:9]
                     phoneRaw = ""
                     for i in phoneOrig:
                         if i.isnumeric():
                             phoneRaw += i
                     phoneRaw = "000000000" + phoneRaw
-                    phoneCell.value = "996" + phoneRaw[-9:]
+                    phoneCell = "996" + phoneRaw[-9:]
 
-                    for i in range(1, maxColumn+1):
-                        sheetBase.cell(row=lastRawBase, column=i).value = sheetIns.cell(row=counterA, column=i).value
+                    sheetNew.cell(row=counterA, column=13).value = phoneCell
+
+                    for i in range(1, maxColumn + 1):
+                        sheetBase.cell(row=lastRawBase, column=i).value = sheetNew.cell(row=counterA, column=i).value
 
                     lastRawBase += 1
                     counterA += 1
                 f.write(f"{file}\n")
                 f.close()
-                bookIns.save(f"1XX 00-00 {pathIns}")
+                bookNew.save(f"aaImport/2XX 00-00 {pathIns}")
                 destination_path = "arhvIns/recep" + file
                 shutil.move(file, destination_path)
                 print(f"MD Import File - {pathIns} - Processed")
     bookBase.save(pathBase)
     checkUniqueClient()
-def updateCallsBase(file:str)->str:
+def updateCallsBase(file: str) -> str:
     print("Backing up CALLS..")
     shutil.copy(pathEmer, f"arhvBKP/BKPemer{currStamp}.xlsx")
     shutil.copy(pathPlan, f"arhvBKP/BKPplan{currStamp}.xlsx")
@@ -129,7 +134,10 @@ def updateCallsBase(file:str)->str:
         status = ""
         dateReg = ""
         agentID = ""
-        medcard = str(sheetImport.cell(row=counterRow, column=14).value) + " - " + str(sheetImport.cell(row=counterRow, column=15).value) + " - " + str(sheetImport.cell(row=counterRow, column=16).value) + " - " + str(sheetImport.cell(row=counterRow, column=17).value)
+        medcard = str(sheetImport.cell(row=counterRow, column=14).value) + " - " + str(
+            sheetImport.cell(row=counterRow, column=15).value) + " - " + str(
+            sheetImport.cell(row=counterRow, column=16).value) + " - " + str(
+            sheetImport.cell(row=counterRow, column=17).value)
         nameIns = sheetImport.cell(row=counterRow, column=5).value
         notNew = True
         noRecord = True
@@ -154,8 +162,7 @@ def updateCallsBase(file:str)->str:
                 noRecord = False
             maxRow -= 1
 
-
-        #if len(sheetImport.cell(row=counterRow, column=2).value) < 10:
+        # if len(sheetImport.cell(row=counterRow, column=2).value) < 10:
         if "деж" not in (sheetImport.cell(row=counterRow, column=3).value):
             sheetPlan.cell(row=lastRowPlan, column=1).value = str(sheetImport.cell(row=counterRow, column=1).value)[:10]
             for i in range(2, 6):
@@ -174,7 +181,7 @@ def updateCallsBase(file:str)->str:
             lastRowPlan += 1
         else:
             sheetEmer.cell(row=lastRowEmer, column=1).value = str(sheetImport.cell(row=counterRow, column=1).value)[:10]
-            for i in range (2,6):
+            for i in range(2, 6):
                 sheetEmer.cell(row=lastRowEmer, column=i).value = sheetImport.cell(row=counterRow, column=i).value
             topic = str(sheetImport.cell(row=counterRow, column=6).value)
             if "не" in topic:
@@ -207,7 +214,7 @@ def updateCallsBase(file:str)->str:
 
         while counterPolicy > 2:
             if sheetAll.cell(row=lastRowAll, column=5).value == sheetAll.cell(row=counterPolicy, column=5).value:
-                #if sheetAll.cell(row=counterPolicy, column=7).value == sheetAll.cell(row=lastRowAll, column=7).value \
+                # if sheetAll.cell(row=counterPolicy, column=7).value == sheetAll.cell(row=lastRowAll, column=7).value \
                 #        and sheetAll.cell(row=counterPolicy, column=7).value != "НЕТ ПОЛИСА":
                 if sheetAll.cell(row=counterPolicy, column=7).value != "НЕТ ПОЛИСА":
                     sheetAll.cell(row=lastRowAll, column=9).value = "повторное"
@@ -245,8 +252,8 @@ def updateCallsBase(file:str)->str:
         lastRowAll += 1
         counterRow -= 1
 
-        if (lastRowImport-counterRow)/lastRowImport*100 > display:
-            print(">"+str(display)+"%", end="")
+        if (lastRowImport - counterRow) / lastRowImport * 100 > display:
+            print(">" + str(display) + "%", end="")
             display += 5
 
     print("")
@@ -255,7 +262,8 @@ def updateCallsBase(file:str)->str:
     bookPlan.save(pathPlan)
     bookAll.save(pathAll)
 
-    rangeReturn = str(sheetImport.cell(row=2, column=1).value)[:10] + "-" + str(sheetImport.cell(row=sheetImport.max_row, column=1).value)[:10]
+    rangeReturn = str(sheetImport.cell(row=2, column=1).value)[:10] + "-" + str(
+        sheetImport.cell(row=sheetImport.max_row, column=1).value)[:10]
     return rangeReturn
 def TelegramScheldule(path_json):
     f = open(path_json, encoding="utf8'")
@@ -364,6 +372,11 @@ def TelegramScheldule(path_json):
                         if dict_i["специалист"] == specialist and dict_i["пациент"] == patient and dict_i[
                             "время"] == time and dict_i["дата"] == str(date):
                             dict_i["пациент отключился"] = str(date_time)
+                if text == "Специалист перезванивает пациенту":
+                    for dict_i in plan_list["data"]:
+                        if dict_i["специалист"] == specialist and dict_i["пациент"] == patient and dict_i[
+                            "время"] == time and dict_i["дата"] == str(date):
+                            dict_i["врач перезвонил"] = str(date_time)
             except Exception as ex:
                 pass
 
@@ -499,7 +512,7 @@ def TelegramEntries(path_json):
         with open('resourses/data_record.json', 'w', encoding='utf8') as f:
             print(str(len(plan_list["data"])), " Записей")
             json.dump(plan_list, f, indent=2, ensure_ascii=False)
-            #print("New json file is created from data.json file")
+            # print("New json file is created from data.json file")
     name_xlsx = 'записи.xlsx'
     try:
         os.remove(name_xlsx)
@@ -542,8 +555,8 @@ def UpdateAgentList():
                 sheetBaseNew.cell(row=counterClients, column=9).value = "aktiv"
                 break
             counterEntries += 1
-        if counterClients/maxRowClients*100 > display:
-            print(">"+str(display)+"%", end="")
+        if counterClients / maxRowClients * 100 > display:
+            print(">" + str(display) + "%", end="")
             display += 5
         counterClients += 1
     print("")
@@ -553,8 +566,6 @@ def TelegramCallCC():
     name_xlsx2 = 'записи.xlsx'
     bookBase = openpyxl.load_workbook(pathBase)
     sheetBase = bookBase.active
-    bookBaseNew = openpyxl.load_workbook(pathBaseNew)
-    sheetBaseNew = bookBaseNew.active
     bookCalls = openpyxl.load_workbook(name_xlsx)
     sheetCalls = bookCalls.active
     bookRecords = openpyxl.load_workbook(name_xlsx2)
@@ -562,46 +573,42 @@ def TelegramCallCC():
     counterRow = 2
     maxRowCalls = sheetCalls.max_row
     maxRowRecords1 = sheetRecords.max_row
-    maxRowNew1 = sheetBaseNew.max_row
     maxRow1 = sheetBase.max_row
     display = 0
-    print("Processing Receptions File ", end="")
+    print("Processing EMER Calls ", end="")
     while counterRow <= maxRowCalls:
-        nameIns = sheetCalls.cell(row=counterRow, column=3).value
-        maxRowNew = maxRowNew1
+        nameIns = str(sheetCalls.cell(row=counterRow, column=4).value)
         maxRow = maxRow1
         maxRowRecords = maxRowRecords1
-        notNew = True
         haveRecord = ""
         callcenter = ""
         policy = ""
         beginP = ""
         weekC = ""
-        while maxRowNew > 1:
-            if sheetBaseNew.cell(row=maxRowNew, column=2).value.strip() == nameIns.strip():
-                callcenter = sheetBaseNew.cell(row=maxRowNew, column=6).value
-                notNew = False
-                maxRowNew = 0
-            maxRowNew -= 1
-        while notNew and maxRow > 1:
-            if nameIns.strip() in sheetBase.cell(row=maxRow, column=3).value and sheetBase.cell(row=maxRow, column=25).value != None:
+        while maxRow > 1:
+            if nameIns == sheetBase.cell(row=maxRow, column=13).value and sheetBase.cell(row=maxRow,
+                                                                                         column=25).value != None:
                 callcenter = sheetBase.cell(row=maxRow, column=25).value
                 policy = sheetBase.cell(row=maxRow, column=4).value
                 beginP = sheetBase.cell(row=maxRow, column=5).value
                 weekC = sheetBase.cell(row=maxRow, column=24).value
+
+                sheetCalls.cell(row=counterRow, column=6).value = callcenter
+                sheetCalls.cell(row=counterRow, column=7).value = policy
+                sheetCalls.cell(row=counterRow, column=8).value = beginP
+                sheetCalls.cell(row=counterRow, column=9).value = weekC
+
+                break
+                print("wwwww")
                 maxRow = 0
             maxRow -= 1
+
         while maxRowRecords > 1:
-            if sheetRecords.cell(row=maxRowRecords, column=4).value == nameIns:
+            if str(sheetRecords.cell(row=maxRowRecords, column=6).value) == nameIns:
                 haveRecord = "есть"
+                sheetCalls.cell(row=counterRow, column=11).value = haveRecord
                 break
             maxRowRecords -= 1
-        sheetCalls.cell(row=counterRow, column=6).value = callcenter
-        sheetCalls.cell(row=counterRow, column=7).value = policy
-        sheetCalls.cell(row=counterRow, column=8).value = beginP
-        sheetCalls.cell(row=counterRow, column=9).value = weekC
-        sheetCalls.cell(row=counterRow, column=11).value = haveRecord
-
 
         my_date = datetime.datetime.strptime(sheetCalls.cell(row=counterRow, column=1).value, "%Y-%m-%d")
         year, week_num, day_of_week = my_date.isocalendar()
@@ -609,8 +616,8 @@ def TelegramCallCC():
         sheetCalls.cell(row=counterRow, column=10).value = currWeek
 
         counterRow += 1
-        if counterRow/maxRowCalls*100 > display:
-            print(">"+str(display)+"%", end="")
+        if counterRow / maxRowCalls * 100 > display:
+            print(">" + str(display) + "%", end="")
             display += 5
     print("")
     print("CC Processed")
@@ -641,20 +648,19 @@ def TelegramPlanCC():
                 weekC = sheetBase.cell(row=maxRow, column=24).value
                 maxRow = 0
             maxRow -= 1
-        sheetCalls.cell(row=counterRow, column=10).value = callcenter
-        sheetCalls.cell(row=counterRow, column=11).value = policy
-        sheetCalls.cell(row=counterRow, column=12).value = beginP
-        sheetCalls.cell(row=counterRow, column=13).value = weekC
-
+        sheetCalls.cell(row=counterRow, column=11).value = callcenter
+        sheetCalls.cell(row=counterRow, column=12).value = policy
+        sheetCalls.cell(row=counterRow, column=13).value = beginP
+        sheetCalls.cell(row=counterRow, column=14).value = weekC
 
         my_date = datetime.datetime.strptime(sheetCalls.cell(row=counterRow, column=1).value, "%Y-%m-%d")
         year, week_num, day_of_week = my_date.isocalendar()
         currWeek = week_num
-        sheetCalls.cell(row=counterRow, column=14).value = currWeek
+        sheetCalls.cell(row=counterRow, column=15).value = currWeek
 
         counterRow += 1
-        if counterRow/maxRowCalls*100 > display:
-            print(">"+str(display)+"%", end="")
+        if counterRow / maxRowCalls * 100 > display:
+            print(">" + str(display) + "%", end="")
             display += 5
     print("")
     print("CC Processed")
@@ -706,7 +712,7 @@ def smsReportImport():
                 if counterC > maxRowBase:
                     sheetSMS.delete_rows(counterA)
             counterA -= 1
-            if (maxRowSMS-counterA) / maxRowSMS * 100 > display:
+            if (maxRowSMS - counterA) / maxRowSMS * 100 > display:
                 print(">" + str(display) + "%", end="")
                 display += 10
         maxRowSMS = sheetSMS.max_row
@@ -719,7 +725,7 @@ def smsReportImport():
                     break
                 if counterB == 2:
                     for i in range(1, 9):
-                        sheetPRCD.cell(row=maxRowPRCD+1, column=i).value = sheetSMS.cell(row=counterA, column=i).value
+                        sheetPRCD.cell(row=maxRowPRCD + 1, column=i).value = sheetSMS.cell(row=counterA, column=i).value
                     maxRowPRCD += 1
                 counterB -= 1
             counterA -= 1
@@ -728,7 +734,6 @@ def smsReportImport():
         shutil.move(file, destination_path)
         print("")
         print(f"SMS Report - {file} - Processed")
-
 
     print("Forming BF Report.. ")
     bookCalls = openpyxl.load_workbook(pathAll)
@@ -760,7 +765,7 @@ def smsReportImport():
 
         maxRowSMS = sheetPRCD.max_row
         maxRowBase = sheetBase.max_row
-        maxRowReport = 51 #sheetReport.max_row - 2
+        maxRowReport = 51  # sheetReport.max_row - 2
         maxRowCalls = sheetCalls.max_row
 
         # move all data
@@ -771,8 +776,8 @@ def smsReportImport():
                 while counterFrow <= 54:
                     for j in range(0, 2):
                         if counterFrow != 51:
-                            sheetReport.cell(row=counterFrow, column=counterFcol+2+j).value = \
-                                sheetReport.cell(row=counterFrow, column=counterFcol+j).value
+                            sheetReport.cell(row=counterFrow, column=counterFcol + 2 + j).value = \
+                                sheetReport.cell(row=counterFrow, column=counterFcol + j).value
                     counterFrow += 1
             counterFcol = counterFcol - 2
             counterFrow = 2
@@ -806,7 +811,7 @@ def smsReportImport():
             counterF = 2
             officeName = sheetReport.cell(row=counterD, column=2).value
 
-            #print("Counting new members..")
+            # print("Counting new members..")
             while counterE <= maxRowBase:
                 if officeName == sheetBase.cell(row=counterE, column=2).value:
                     if sheetBase.cell(row=counterE, column=20).value == "uniq":
@@ -824,7 +829,7 @@ def smsReportImport():
                             else:
                                 maleWeekIns += 1
                 counterE += 1
-            #print("Counting new registrations..")
+            # print("Counting new registrations..")
             while counterF <= maxRowSMS:
                 if officeName == sheetPRCD.cell(row=counterF, column=6).value:
                     quantityRegis += 1
@@ -840,7 +845,7 @@ def smsReportImport():
                         else:
                             maleWeekReg += 1
                 counterF += 1
-            #print("Counting receptions..")
+            # print("Counting receptions..")
             counterF = 2
             while counterF <= maxRowCalls:
                 if officeName == sheetCalls.cell(row=counterF, column=8).value:
@@ -852,7 +857,7 @@ def smsReportImport():
                 counterF += 1
             sheetReport.cell(row=counterD, column=3).value = quantityTotal
             sheetReport.cell(row=counterD, column=4).value = quantityRegis
-            #sheetReport.cell(row=counterD, column=7).value = quantityTotalLastW
+            # sheetReport.cell(row=counterD, column=7).value = quantityTotalLastW
             sheetReport.cell(row=counterD, column=7).value = quantityRegisLastW
             sheetReport.cell(row=counterD, column=6).value = quantityCalls
             sheetReport.cell(row=counterD, column=8).value = quantityCallsLastW
@@ -862,8 +867,8 @@ def smsReportImport():
         sheetReport.cell(row=maxRowReport + 2, column=3).value = femaleTotalIns
         sheetReport.cell(row=maxRowReport + 1, column=4).value = maleTotalReg
         sheetReport.cell(row=maxRowReport + 2, column=4).value = femaleTotalReg
-        #sheetReport.cell(row=maxRowReport + 1, column=7).value = maleWeekIns
-        #sheetReport.cell(row=maxRowReport + 2, column=7).value = femaleWeekIns
+        # sheetReport.cell(row=maxRowReport + 1, column=7).value = maleWeekIns
+        # sheetReport.cell(row=maxRowReport + 2, column=7).value = femaleWeekIns
         sheetReport.cell(row=maxRowReport + 1, column=7).value = maleWeekReg
         sheetReport.cell(row=maxRowReport + 2, column=7).value = femaleWeekReg
 
@@ -872,9 +877,9 @@ def smsReportImport():
         counterT1 = 65
         counterT2 = 115
         i = 0
-        while counterFrow+i < 51:
-            sheetReport.cell(row=counterT1 + i, column=1).value = sheetReport.cell(row=counterFrow+ i, column=1).value
-            sheetReport.cell(row=counterT2 + i, column=1).value = sheetReport.cell(row=counterFrow+ i, column=1).value
+        while counterFrow + i < 51:
+            sheetReport.cell(row=counterT1 + i, column=1).value = sheetReport.cell(row=counterFrow + i, column=1).value
+            sheetReport.cell(row=counterT2 + i, column=1).value = sheetReport.cell(row=counterFrow + i, column=1).value
             sheetReport.cell(row=counterT1 + i, column=2).value = sheetReport.cell(row=counterFrow + i, column=2).value
             sheetReport.cell(row=counterT2 + i, column=2).value = sheetReport.cell(row=counterFrow + i, column=2).value
             sheetReport.cell(row=counterT1 + i, column=3).value = sheetReport.cell(row=counterFrow + i, column=4).value
@@ -884,7 +889,7 @@ def smsReportImport():
         print(">>100!>>>")
         bookReport.save("TemplateReport.xlsx")
 
-    #bookReport.save("Отчет по регистрациям в Мой Доктор на " + currStamp + ".xlsx")
+    # bookReport.save("Отчет по регистрациям в Мой Доктор на " + currStamp + ".xlsx")
 def checkUniqueClient():
     bookBase = openpyxl.load_workbook(pathBase)
     sheetBase = bookBase.active
@@ -897,17 +902,27 @@ def checkUniqueClient():
             print(">" + str(display) + "%", end="")
             display += 3
         if sheetBase.cell(row=counterE, column=20).value == None:
-            sheetBase.cell(row=counterE, column=20).value = "rept"
+            sheetBase.cell(row=counterE, column=20).value = "uniq"
             counterDuplicate = counterE - 1
-            while sheetBase.cell(row=counterE, column=3).value != sheetBase.cell(row=counterDuplicate, column=3).value:
-                counterDuplicate -= 1
-                if counterDuplicate == 1:
-                    sheetBase.cell(row=counterE, column=20).value = "uniq"
+            while counterDuplicate > 1:
+                if sheetBase.cell(row=counterE, column=13).value == sheetBase.cell(row=counterDuplicate,
+                                                                                   column=13).value:
+                    sheetBase.cell(row=counterE, column=20).value = "rept"
                     break
+                if sheetBase.cell(row=counterE, column=3).value == sheetBase.cell(row=counterDuplicate,
+                                                                                  column=3).value and sheetBase.cell(
+                        row=counterDuplicate, column=20).value == "uniq":
+                    if sheetBase.cell(row=counterE, column=13).value != sheetBase.cell(row=counterDuplicate,
+                                                                                       column=13).value:
+                        sheetBase.cell(row=counterE, column=20).value = "uniq"
+                        sheetBase.cell(row=counterDuplicate, column=20).value = "rept"
+                    else:
+                        sheetBase.cell(row=counterE, column=20).value = "rept"
+                counterDuplicate -= 1
         counterE += 1
     print(">>100!>>>")
     bookBase.save(pathBase)
-def checkActive(smsReport:str):
+def checkActive(smsReport: str):
     bookSMS = openpyxl.load_workbook(smsReport)
     sheetSMS = bookSMS.active
     bookBase = openpyxl.load_workbook(pathBase)
@@ -943,16 +958,30 @@ def extractTop100():
         maxRow = sheetBase.max_row
         randomNum = random.randrange(1, 99)
         callerName = input("Call-Center Name: ")
-        callerPref = input("Desired office: ")
-        f = open("список-" + callerName + "-" + currStamp + "-" + str(randomNum) + ".txt", 'w')
+        callerPref1 = input("Desired office 1: ")
+        # callerPref2 = input("Desired office 2: ")
+        callerPref2 = callerPref1
+        f = open("список-" + callerName + "-" + currStamp + "-" + str(randomNum) + ".txt", 'w', encoding='utf-8')
         f.write("список- " + callerName + " " + str(currTime))
         f.write('\n')
         newList = True
-
+        match = False
+        listSize = 240
+        if callerPref1 != "":
+            listSize = 360
         counterA = maxRow - 1
-        while counterA > 1 and counterClients < 360:
-            if sheetBase.cell(row=counterA, column=25).value == None and sheetBase.cell(row=counterA, column=20).value == "uniq" and sheetBase.cell(row=counterA, column=21).value == "neakt" and callerPref in sheetBase.cell(row=counterA, column=2).value:
-                f.write(str(counterClients) + " " + sheetBase.cell(row=counterA, column=3).value + " / " + sheetBase.cell(row=counterA, column=2).value[5:] + " +" + sheetBase.cell(
+        while counterA > 1 and counterClients < listSize:
+            if callerPref1 in sheetBase.cell(row=counterA, column=2).value or callerPref2 in sheetBase.cell(
+                    row=counterA, column=2).value:
+                match = True
+            else:
+                match = False
+            if sheetBase.cell(row=counterA, column=25).value == None and sheetBase.cell(row=counterA,
+                                                                                        column=20).value == "uniq" and sheetBase.cell(
+                    row=counterA, column=21).value == "neakt" and match:
+                f.write(
+                    str(counterClients) + " " + sheetBase.cell(row=counterA, column=3).value + " / " + sheetBase.cell(
+                        row=counterA, column=2).value[5:] + " +" + sheetBase.cell(
                         row=counterA, column=13).value)
                 f.write('\n')
                 sheetBase.cell(row=counterA, column=25).value = callerName
@@ -970,7 +999,59 @@ def extractTop100():
         f.close()
         print("List of contacts created")
     bookBase.save(pathBase)
-def transformDocList(docList:str):
+def extractRepeats():
+    bookBase = openpyxl.load_workbook(pathBase)
+    sheetBase = bookBase.active
+    while (input("00 to EXIT: ") != "00"):
+        counterClients = 1
+        my_date = datetime.date.today()
+        year, week_num, day_of_week = my_date.isocalendar()
+        currWeek = week_num
+        maxRow = sheetBase.max_row
+        randomNum = random.randrange(1, 99)
+        callerName = input("PREV Call-Center Name: ")
+        callerPref1 = ""
+        # callerPref1 = input("Desired office: ")
+        callFinal = callerName
+        # callFinal = input("NEW Call-Center Name: ")
+        f = open("список-" + callFinal + "-" + currStamp + "- R -" + str(randomNum) + ".txt", 'w', encoding='utf-8')
+        f.write("список- " + callFinal + " R  из " + callerName + " " + str(currTime))
+        f.write('\n')
+        newList = True
+        match = False
+        listSize = 360
+        counterA = maxRow - 1
+        match = False
+        while counterA > 1 and counterClients < listSize:
+            if callerPref1 in sheetBase.cell(row=counterA, column=2).value:
+                match = True
+            else:
+                match = False
+            if sheetBase.cell(row=counterA, column=25).value == callerName and sheetBase.cell(row=counterA,
+                                                                                              column=20).value == "uniq" and sheetBase.cell(
+                    row=counterA, column=21).value == "neakt" and match:
+                f.write(
+                    str(counterClients) + " " + sheetBase.cell(row=counterA, column=3).value + " / " + sheetBase.cell(
+                        row=counterA, column=2).value[5:] + " +" + sheetBase.cell(
+                        row=counterA, column=13).value)
+                f.write('\n')
+                sheetBase.cell(row=counterA, column=25).value = "R " + callFinal
+                sheetBase.cell(row=counterA, column=26).value = callerName
+                sheetBase.cell(row=counterA, column=24).value = currWeek
+                newList = True
+                counterClients += 1
+            counterA -= 1
+            if counterClients % 30 == 0 and newList is True:
+                f.write('\n')
+                f.write('---------------')
+                f.write('\n')
+                f.write("список- " + callFinal + " R  из " + callerName + " " + str(currTime))
+                f.write('\n')
+                newList = False
+        f.close()
+        print("List of contacts created")
+    bookBase.save(pathBase)
+def transformDocList(docList: str):
     bookList = openpyxl.load_workbook(docList)
     sheetList = bookList.active
     bookNew = openpyxl.load_workbook("TemplateDocs.xlsx")
@@ -980,12 +1061,12 @@ def transformDocList(docList:str):
     counterA = 6
     counterNew = 1
     while counterA <= maxRowList:
-        #print("start")
+        # print("start")
         while sheetList.cell(row=counterA, column=7).value == None and counterA <= maxRowList:
             counterA += 1
         counterB = counterA - 1
         while counterB > 0:
-            #print(str(counterA) + " / " + str(counterB) + str(sheetList.cell(row=counterA, column=3).value) + str(sheetNew.cell(row=counterB, column=2).value))
+            # print(str(counterA) + " / " + str(counterB) + str(sheetList.cell(row=counterA, column=3).value) + str(sheetNew.cell(row=counterB, column=2).value))
             if (sheetList.cell(row=counterA, column=1).value == sheetNew.cell(row=counterB, column=1).value and
                     sheetList.cell(row=counterA, column=3).value == sheetNew.cell(row=counterB, column=2).value and
                     sheetList.cell(row=counterA, column=7).value == sheetNew.cell(row=counterB, column=4).value):
@@ -1008,24 +1089,25 @@ def transformDocList(docList:str):
         if "смерть" in insCase:
             counterNew += 1
             for i in [1, 2, 3, 4, 6]:
-                sheetNew.cell(row=counterNew, column=i).value = sheetNew.cell(row=counterNew-1, column=i).value
+                sheetNew.cell(row=counterNew, column=i).value = sheetNew.cell(row=counterNew - 1, column=i).value
             sheetNew.cell(row=counterNew, column=5).value = "свидетельство о смерти нот.зав.копия"
         elif "инвалидность" in insCase:
             counterNew += 1
             for i in [1, 2, 3, 4, 6]:
-                sheetNew.cell(row=counterNew, column=i).value = sheetNew.cell(row=counterNew-1, column=i).value
+                sheetNew.cell(row=counterNew, column=i).value = sheetNew.cell(row=counterNew - 1, column=i).value
             sheetNew.cell(row=counterNew, column=5).value = "нот.зав.копия МСЭК"
         elif "критическое" in insCase:
             for i in [1, 2, 3, 4, 6]:
-                sheetNew.cell(row=counterNew, column=i).value = sheetNew.cell(row=counterNew-1, column=i).value
+                sheetNew.cell(row=counterNew, column=i).value = sheetNew.cell(row=counterNew - 1, column=i).value
             sheetNew.cell(row=counterNew, column=5).value = "эпикриз оригинал"
         if sheetNew.cell(row=counterNew, column=4).value is None:
             counterNew -= 1
         counterNew += 1
         counterA += 1
 
-    bookNew.save(f"БФоригиналы-{str(sheetNew.cell(row=1, column=1).value)[:5]}-{str(sheetNew.cell(row=counterNew-1, column=1).value)[:5]}.xlsx")
-    #print(sheetNew.max_row)
+    bookNew.save(
+        f"БФоригиналы-{str(sheetNew.cell(row=1, column=1).value)[:5]}-{str(sheetNew.cell(row=counterNew - 1, column=1).value)[:5]}.xlsx")
+    # print(sheetNew.max_row)
     print(f"DOCS Report - {docList} - Processed")
 def prepeareSKReport():
     bookAll = openpyxl.load_workbook(pathAll)
@@ -1065,8 +1147,9 @@ def prepeareSKReport():
                 counter -= 1
             checkDuplicate = sheetReport.max_row
             while checkDuplicate > 1:
-                if sheetReport.cell(row=checkDuplicate, column=2).value == sheetAll.cell(row=counterMain, column=5).value \
-                    and sheetReport.cell(row=checkDuplicate, column=3).value == "специалист":
+                if sheetReport.cell(row=checkDuplicate, column=2).value == sheetAll.cell(row=counterMain,
+                                                                                         column=5).value \
+                        and sheetReport.cell(row=checkDuplicate, column=3).value == "специалист":
                     break
                 checkDuplicate -= 1
 
@@ -1081,6 +1164,35 @@ def prepeareSKReport():
                 sheetReport.cell(row=counterReport, column=8).value = sheetAll.cell(row=counterMain, column=11).value
                 sheetReport.cell(row=counterReport, column=9).value = qThisM
                 counterReport += 1
+
+        if thisMonth and havePolicy and not planned:
+            counter = maxRowAll
+            while counter > 1:
+                if sheetAll.cell(row=counterMain, column=5).value == sheetAll.cell(row=counter, column=5).value \
+                        and str(sheetAll.cell(row=counter, column=1).value)[:8] == currMonth \
+                        and sheetAll.cell(row=counter, column=11).value == "дежурный":
+                    qThisM += 1
+                counter -= 1
+            checkDuplicate = sheetReport.max_row
+            while checkDuplicate > 1:
+                if sheetReport.cell(row=checkDuplicate, column=2).value == sheetAll.cell(row=counterMain,
+                                                                                         column=5).value \
+                        and sheetReport.cell(row=checkDuplicate, column=3).value == "дежурный":
+                    break
+                checkDuplicate -= 1
+
+            if checkDuplicate == 1:
+                sheetReport.cell(row=counterReport, column=1).value = sheetAll.cell(row=counterMain, column=1).value
+                sheetReport.cell(row=counterReport, column=2).value = sheetAll.cell(row=counterMain, column=5).value
+                sheetReport.cell(row=counterReport, column=3).value = "дежурный"
+                sheetReport.cell(row=counterReport, column=4).value = sheetAll.cell(row=counterMain, column=7).value
+                sheetReport.cell(row=counterReport, column=5).value = sheetAll.cell(row=counterMain, column=8).value
+                sheetReport.cell(row=counterReport, column=6).value = sheetAll.cell(row=counterMain, column=9).value
+                sheetReport.cell(row=counterReport, column=7).value = sheetAll.cell(row=counterMain, column=10).value
+                sheetReport.cell(row=counterReport, column=8).value = sheetAll.cell(row=counterMain, column=11).value
+                sheetReport.cell(row=counterReport, column=9).value = qThisM
+                counterReport += 1
+
         counterMain += 1
 
         if counterMain / maxRowAll * 100 > display:
@@ -1090,7 +1202,7 @@ def prepeareSKReport():
     bookReport.save("SKReport.xlsx")
 def attendance(path_xlsx):
     all_date = []
-    path_json = 'file_name.json'
+    path_json = 'resourses/file_name.json'
     empty_dict = {
         'Name': [],
         'DateTime': [],
@@ -1100,7 +1212,8 @@ def attendance(path_xlsx):
     plan_list = {"data": []}
     # Create the DataFrame
     # end_dataframe = pd.DataFrame(empty_dict)
-    xlsx_frame = pd.read_excel(path_xlsx, header=None,skiprows=[0, 1]).rename(columns={1: 'Name', 3: 'DateTime', 5: 'Door'})
+    xlsx_frame = pd.read_excel(path_xlsx, header=None, skiprows=[0, 1]).rename(
+        columns={1: 'Name', 3: 'DateTime', 5: 'Door'})
     xlsx_frame.head()
     all_date = xlsx_frame["DateTime"].unique()
     for i, data in enumerate(all_date):
@@ -1125,11 +1238,11 @@ def attendance(path_xlsx):
                 matching.append(not_exit)
         all_df.append(new_data_frame)
     end_dataframe = pd.concat(all_df)
-    end_dataframe.to_excel("Attendance.xlsx", index = False)
+    end_dataframe.to_excel("Attendance.xlsx", index=False)
 
     data_json = end_dataframe.to_json(orient='records', force_ascii=False)
 
-    with open(path_json, 'w',  encoding='utf8') as f:
+    with open(path_json, 'w', encoding='utf8') as f:
         f.write(data_json)
         # json.dump(out, f, indent=2, ensure_ascii=False)
     f = open(path_json, encoding="utf8'")
@@ -1151,17 +1264,18 @@ def attendance(path_xlsx):
             last_exit = ''
 
         new_value = {
-             "Дата": date,
-             "Сотрудник": worker,
-             "Первый приход": first_income ,
-             "Последний уход": last_exit,
+            "Дата": date,
+            "Сотрудник": worker,
+            "Первый приход": first_income,
+            "Последний уход": last_exit,
         }
         plan_list["data"].append(new_value)
     for match in matching:
         date = match["date"]
         worker = match['name']
         query = f"""SELECT MAX(DateTime) FROM xlsx_frame WHERE Door LIKE '%doorOUT%' AND DateTime LIKE '%{date}%' 
-                                                                            AND Name LIKE '%{worker}%'""".format(date,worker)
+                                                                            AND Name LIKE '%{worker}%'""".format(date,
+                                                                                                                 worker)
         last_exit_query = sqldf(query, locals())
         new_value = {
             "Дата": date,
@@ -1171,14 +1285,272 @@ def attendance(path_xlsx):
         }
         plan_list["data"].append(new_value)
     name_xlsx = 'attendance.xlsx'
-    with open('attendance.json', 'w', encoding='utf8') as f:
+    with open('resourses/attendance.json', 'w', encoding='utf8') as f:
         json.dump(plan_list, f, indent=2, ensure_ascii=False)
-    pd.read_json("attendance.json", orient='split').sort_values('Дата').to_excel(name_xlsx, index=False)
+    pd.read_json("resourses/attendance.json", orient='split').sort_values('Дата').to_excel(name_xlsx, index=False)
     print("Создана таблица с посещением")
+def extractFree():
+    bookBase = openpyxl.load_workbook(pathFree)
+    sheetBase = bookBase.active
+    while (input("00 to EXIT: ") != "00"):
+        counterClients = 1
+        my_date = datetime.date.today()
+        year, week_num, day_of_week = my_date.isocalendar()
+        currWeek = week_num
+        maxRow = sheetBase.max_row
+        randomNum = random.randrange(1, 99)
+        callerName = input("Call-Center Name: ")
+        f = open("AGсписок-" + callerName + "-" + currStamp + "-" + str(randomNum) + ".txt", 'w', encoding='utf-8')
+        f.write("AGсписок- " + callerName + " " + str(currTime))
+        f.write('\n')
+        newList = True
+        match = False
+        listSize = 120
+        counterA = maxRow - 1
+        while sheetBase.cell(row=counterA, column=7).value != None:
+            counterA -= 1
+        while counterA > 1 and counterClients < listSize:
+            match = True
+            if sheetBase.cell(row=counterA, column=7).value == None:
+                f.write(
+                    str(counterClients) + " " + sheetBase.cell(row=counterA,
+                                                               column=1).value + " / рег от " + sheetBase.cell(
+                        row=counterA, column=4).value + " +" + sheetBase.cell(
+                        row=counterA, column=2).value)
+                f.write('\n')
+                sheetBase.cell(row=counterA, column=7).value = callerName
+                sheetBase.cell(row=counterA, column=8).value = currWeek
+                newList = True
+                counterClients += 1
+            counterA -= 5
+            if counterClients % 30 == 0 and newList is True:
+                f.write('\n')
+                f.write('---------------')
+                f.write('\n')
+                f.write("AGсписок- " + callerName + " " + str(currTime))
+                f.write('\n')
+                newList = False
+        f.close()
+        print("List of contacts created")
+    bookBase.save(pathFree)
+def dailyReceptions():
+    for file in glob.glob("rece*.xlsx"):
+        wb = openpyxl.load_workbook(file)
+        ws = wb.active
 
-#----------------M---A---I---N----------------
+        # Delete columns
+        ws.delete_cols(17)
+        ws.delete_cols(13)
+        ws.delete_cols(12)
+        ws.delete_cols(11)
+        ws.delete_cols(7)
+        ws.delete_cols(7)
+        print(f"Rows after deleting columns in {file}: {ws.max_row}")  # Checkpoint 1
+
+        # Filter rows
+        counter = ws.max_row
+        while counter > 1:
+            if ws.cell(row=counter, column=7).value == None:
+                ws.cell(row=counter, column=7).value = "---"
+            if "Исакова Айпери" in ws.cell(row=counter, column=5).value or "Рысбекова Зарина Рысбековна" in ws.cell(
+                    row=counter, column=5).value or ws.cell(row=counter, column=8).value == "дежурный":
+                ws.delete_rows(counter)
+            elif ws.cell(row=counter, column=9).value == None and ws.cell(row=counter, column=10).value == None:
+                ws.cell(row=counter, column=9).value = "НЕУСПЕШНЫЙ"
+                ws.cell(row=counter, column=10).value = "НЕУСПЕШНЫЙ"
+            counter -= 1
+        print(f"Rows after filtering in {file}: {ws.max_row}")  # Checkpoint 2
+
+        # Check third column values before sorting
+        for i in range(1, ws.max_row + 1):
+            print(ws.cell(row=i, column=3).value)  # Checkpoint 3
+
+        value_counts = {}  # Dictionary to hold counts of each unique value in column 3
+        for i in range(1, ws.max_row + 1):
+            value = ws.cell(row=i, column=3).value
+            if value in value_counts:
+                value_counts[value] += 1
+            else:
+                value_counts[value] = 1
+
+        # Print out the counts
+        print(f"\nOccurrences in {file}:")
+        for value, count in value_counts.items():
+            print(f"'{value}': {count} times")
+        print("-" * 40)  # Print a separator for clarity
+
+        rows = list(ws.iter_rows(values_only=True))
+        header = rows[0]
+        data_rows = rows[1:]
+
+        sorted_data_rows = sorted(data_rows, key=lambda x: x[2])
+        wb.remove(ws)
+        ws_sorted = wb.create_sheet("SortedSheet", 0)
+
+        for col_num, value in enumerate(header, 1):
+            ws_sorted.cell(row=1, column=col_num, value=value)
+
+        for row_num, row in enumerate(sorted_data_rows, 2):
+            for col_num, value in enumerate(row, 1):
+                ws_sorted.cell(row=row_num, column=col_num, value=value)
+        ws_sorted.delete_cols(8)
+        # ws_sorted.delete_cols(7)
+        wb.save("proc-" + ws_sorted.cell(row=2, column=1).value + " " + file)
+        os.remove(file)
+def writeToLog(file):
+    # Создаем упорядоченный словарь для хранения статистики по датам и врачам
+    doctor_stats = OrderedDict()
+
+    # Открываем файл
+    wb = openpyxl.load_workbook(file)
+    ws = wb.active
+
+    # Проходимся по строкам файла, начиная со второй строки
+    for row in ws.iter_rows(min_row=2, values_only=True):
+        date = row[0]
+        doctor = row[2]
+        reception_topic = row[7]
+
+        # Проверяем, есть ли запись для этой даты в словаре
+        if date not in doctor_stats:
+            doctor_stats[date] = {}
+
+        # Проверяем, есть ли запись для этого врача в словаре
+        if doctor not in doctor_stats[date]:
+            doctor_stats[date][doctor] = {"Успешные приемы": 0, "Неуспешные приемы": 0}
+
+        # Подсчитываем успешные и неуспешные приемы
+        if "НЕУСПЕШНЫЙ" in reception_topic:
+            doctor_stats[date][doctor]["Неуспешные приемы"] += 1
+        else:
+            doctor_stats[date][doctor]["Успешные приемы"] += 1
+
+    # Сортировка словаря по дате
+    sorted_doctor_stats = OrderedDict(sorted(doctor_stats.items(), key=lambda x: x[0]))
+
+    # Проверим наличие существующего лог-файла и откроем его, если он существует
+    if os.path.isfile("LogReceptions.xlsx"):
+        log_wb = openpyxl.load_workbook("LogReceptions.xlsx")
+        log_ws = log_wb.active
+    else:
+        # Если лог-файл не существует, создадим его
+        log_wb = openpyxl.Workbook()
+        log_ws = log_wb.active
+        log_ws.append(["Дата", "ФИО врача", "Успешные приемы", "Неуспешные приемы"])
+
+    # Добавление данных в существующий лог-файл
+    for date, doctors in sorted_doctor_stats.items():
+        for doctor, stats in doctors.items():
+            log_ws.append([date, doctor, stats["Успешные приемы"], stats["Неуспешные приемы"]])
+
+    # Добавление разделительной строки
+    log_ws.append(["-" * 10, "-" * 10, "-" * 10, "-" * 10, "-" * 10])
+    # Сохранение обновленного лог-файла
+    log_wb.save("LogReceptions.xlsx")
+def UpdateDates(filename):
+    try:
+        workbook = openpyxl.load_workbook(filename)
+        sheet = workbook.active
+
+        current_date = datetime.datetime.now().date()
+        formatted_date = current_date.strftime('%Y-%m-%d')  # Преобразуем дату в строку формата "yyyy-mm-dd"
+
+        for row in sheet.iter_rows(min_row=4, min_col=5):
+            cell = row[0]
+            cell.value = formatted_date  # Записываем отформатированную дату как текст
+
+        workbook.save(filename)
+        print("Даты успешно обновлены.")
+
+    except Exception as e:
+        print(f"Произошла ошибка: {e}")
+def process_excel_files_cost():
+    # Открываем файлы
+    log_receptions_file = "LogReceptions.xlsx"
+    md_sotrudniki_file = "МД Сотрудники.xlsx"
+    expenses_file = "PaymentsDaily.xlsx"
+
+    # Открываем файлы Excel
+    log_receptions_workbook = openpyxl.load_workbook(log_receptions_file)
+    md_sotrudniki_workbook = openpyxl.load_workbook(md_sotrudniki_file)
+    expenses_workbook = openpyxl.load_workbook(expenses_file)
+
+    # Выбираем активные листы в каждой книге
+    log_receptions_sheet = log_receptions_workbook.active
+    md_sotrudniki_sheet = md_sotrudniki_workbook.active
+    expenses_sheet = expenses_workbook.active
+
+    # Проходимся по файлу "LogReceptions" и обновляем стоимости, если они не были ранее посчитаны
+    counterLog = log_receptions_sheet.max_row
+    maxRowSotr = md_sotrudniki_sheet.max_row
+    while counterLog > 2:
+        name = log_receptions_sheet.cell(row=counterLog, column=2).value  # Имя находится во 2 столбце
+        cost = log_receptions_sheet.cell(row=counterLog, column=5).value  # Стоимость находится в 5 столбце
+        if cost == None:
+            payment = "N/A"
+            finalP = "N/A"
+            agent = "N/A"
+            counterSotr = 2
+            while md_sotrudniki_sheet.cell(row=counterSotr, column=5).value != None:
+                nameS = md_sotrudniki_sheet.cell(row=counterSotr, column=5).value  # Имя находится в 5 столбце
+                costS = md_sotrudniki_sheet.cell(row=counterSotr, column=18).value  # Стоимость находится в 18 столбце
+                if name in nameS:
+                    if md_sotrudniki_sheet.cell(row=counterSotr, column=21).value == "день":
+                        finalP = costS * log_receptions_sheet.cell(row=counterLog,
+                                                                   column=3).value + 150 * log_receptions_sheet.cell(
+                            row=counterLog, column=4).value
+                    else:
+                        finalP = md_sotrudniki_sheet.cell(row=counterSotr, column=21).value
+                    payment = md_sotrudniki_sheet.cell(row=counterSotr, column=20).value
+                    agent = md_sotrudniki_sheet.cell(row=counterSotr, column=17).value
+                    break
+                counterSotr += 1
+            log_receptions_sheet.cell(row=counterLog, column=5).value = finalP
+            log_receptions_sheet.cell(row=counterLog, column=6).value = payment
+            log_receptions_sheet.cell(row=counterLog, column=7).value = agent
+            if finalP != "месяц":
+                today = datetime.date.today()
+                formatted_date = today.strftime('%d.%m.%Y')
+                expenses_sheet.append(["З/П", \
+                                       log_receptions_sheet.cell(row=counterLog, column=1).value, \
+                                       log_receptions_sheet.cell(row=counterLog, column=2).value, \
+                                       log_receptions_sheet.cell(row=counterLog, column=3).value, \
+                                       log_receptions_sheet.cell(row=counterLog, column=4).value, \
+                                       log_receptions_sheet.cell(row=counterLog, column=5).value, \
+                                       log_receptions_sheet.cell(row=counterLog, column=6).value, \
+                                       "квитанция эл.кошелек", \
+                                       formatted_date])
+        counterLog -= 1
+
+    expenses_sheet.append(["-" * 10, "-" * 10, "-" * 10, "-" * 10, "-" * 10, "-" * 10, "-" * 10, "-" * 10])
+    log_receptions_workbook.save("LogReceptions.xlsx")
+    expenses_workbook.save(expenses_file)
+    # Закрываем файлы
+    log_receptions_workbook.close()
+    md_sotrudniki_workbook.close()
+    expenses_workbook.close()
+def summarize_log():
+    # Загрузка данных из файла Excel
+    data = pd.read_excel('LogReceptions.xlsx', engine='openpyxl')
+
+    # Группировка по имени (второй столбец) и суммирование значений по третьему, четвертому и пятому столбцам
+    grouped_data = data.groupby(data.columns[1]).agg({
+        data.columns[2]: 'sum',
+        data.columns[3]: 'sum',
+        data.columns[4]: 'sum',
+        data.columns[6]: 'sum'
+    }).reset_index()
+
+    # Переименование столбцов для читаемости
+    grouped_data.columns = ['Имя', 'Успешные приемы', 'Неуспешные приемы', 'Уплаченная сумма', 'Агент']
+
+    # Сохранение результата в новый Excel-файл
+    grouped_data.to_excel('ProcessedLogReceptions.xlsx', index=False, engine='openpyxl')
+
+# ----------------M---A---I---N----------------
 
 pathBase = "base.xlsx"
+pathFree = "free.xlsx"
 pathLog = "resourses/LOG.txt"
 pathAll = "baseAllCalls.xlsx"
 pathEmer = "resourses/baseEmer.xlsx"
@@ -1188,20 +1560,21 @@ pathSov = "resourses/listSov.txt"
 pathBaseNew = "baseNew.xlsx"
 pathPRCD = "PRCD-AllEntriesBF.xlsx"
 pathRepSK = "resourses/TemplateSKReport.xlsx"
+pathRepINS = "resourses/TemplateINS.xlsx"
 currStamp = str(datetime.datetime.now())[:10]
 currTime = (str(datetime.datetime.now())[5:16])
 
 with open(pathLog, "a+") as f:
     f.write(f"{str(datetime.datetime.now())}\n")
-    f.close();
+    f.close()
 
 while True:
-    x = input("------------------- \n11 for ОБРАБОТКА СПИСКОВ ЗАСТРАХОВАННЫХ \n22 for ____________ \n33 for ИМПОРТ СМС ОТЧЕТА / СПИСКА ПРИЕМОВ / ФОРМИРОВАНИЕ ОТЧЕТА"
-              "\n44 for СПИСОК ДОКОВ СК \n55 for ТЕЛЕГРАМ ЧАТЫ \n66 for СПИСОК ОБЗВОНОВ \n00 for ВЫХОД \nIN: ")
+    x = input(
+        "------------------- \n11 for ОБРАБОТКА СПИСКОВ ЗАСТРАХОВАННЫХ \n22 for ТАБЕЛЬ ПОСЕЩЕНИЙ \n33 for ИМПОРТ СМС ОТЧЕТА / СПИСКА ПРИЕМОВ / ФОРМИРОВАНИЕ ОТЧЕТА"
+        "\n44 for СПИСОК ДОКОВ СК \n55 for ТЕЛЕГРАМ ЧАТЫ \n66(6) for СПИСОК ОБЗВОНОВ \n77 for АГЕТСКИЕ \n88 for ЕЖЕДНЕВНЫЕ ПРИЕМЫ \n99 for ОБРАБОТКА ЛОГА \n00 for ВЫХОД \nIN: ")
 
     if x == "11":
         dailyImport()
-        checkActive(pathPRCD)
 
     if x == "22":
         for file in glob.glob("report*.xlsx"):
@@ -1216,6 +1589,7 @@ while True:
             print("File {0} Processed and Moved to \n  > > > > >  {1}".format(source_path, new_location))
         prepeareSKReport()
         smsReportImport()
+        checkActive(pathPRCD)
 
     elif x == "44":
         for file in glob.glob("доки*.xlsx"):
@@ -1235,6 +1609,27 @@ while True:
     elif x == "66":
         backupBase()
         extractTop100()
+
+    elif x == "666":
+        backupBase()
+        extractRepeats()
+
+    elif x == "77":
+        extractFree()
+
+    elif x == "88":
+        backupLog()
+        for file in glob.glob("proc-*.xlsx"):
+            os.remove(file)
+        dailyReceptions()
+        for file in glob.glob("proc-*.xlsx"):
+            writeToLog(file)
+        UpdateDates("aaImport/abonement.xlsx")
+        process_excel_files_cost()
+
+    elif x == "99":
+        summarize_log()
+
 
     elif x == "00":
         break
